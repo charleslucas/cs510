@@ -3,6 +3,27 @@ class Bitmap
 {
 private:
 
+    char      bitmap_type[2];         // Bitmap Type                          (2 bytes - always "BM"/0x424D)
+    uint32_t  length;                 // Length in Bytes                      (4 bytes)
+    uint32_t  garbage;                // Garbage                              (4 bytes - ignore)
+    uint32_t  offset;                 // Offset to start of the data          (4 bytes)
+    uint32_t  size_second_header;     // Size of the Second Header            (4 bytes - always 40 bytes)
+     int32_t  width_in_pixels;        // Width in Pixels                      (4 bytes signed)
+     int32_t  height_in_pixels;       // Height in Pixels                     (4 bytes signed)
+    uint16_t  number_of_color_planes; // Number of Color Planes               (2 bytes - *MUST* be 1 - error test)
+    uint16_t  color_depth;            // Color Depth of the Image             (2 bytes - either 24 (RGB) or 32 (RGBA))
+    uint32_t  compression_method;     // Compression Method being Used        (4 bytes - always 0(24-bit) or 3(32-bit))
+    uint32_t  raw_size;               // Size of the Raw Bitmap Data in Bytes (4 bytes)
+    uint32_t  horizontal_resolution;  // Horizontal Resolution in Pixels      (4 bytes - dots per meter - always 2835 - ignore)
+    uint32_t  vertical_resolution;    // Vertical Resolution in Pixels        (4 bytes - dots per meter - always 2835 - ignore)
+    uint32_t  color_palette;          // Number of Colors in Color Palette    (4 bytes - always 0 (not using a color palette - ignore))
+    uint32_t  important_colors;       // Number of Important Colors Used      (4 bytes - always 0 (not using a color palette - ignore))
+    uint32_t  red_mask;               // Red Mask                             (4 bytes - only exists in 32-bit image)
+    uint32_t  green_mask;             // Green Mask                           (4 bytes - only exists in 32-bit image)
+    uint32_t  blue_mask;              // Blue Mask                            (4 bytes - only exists in 32-bit image)
+    uint32_t  alpha_mask;             // Alpha Mask                           (4 bytes - only exists in 32-bit image)
+    char      color_space[68];        // Color Space Information              (68 bytes - only exists in 32-bit image - ignore)
+
     /**
      * Read in an image.
      * reads a bitmap in from the stream

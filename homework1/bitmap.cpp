@@ -1,10 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstring>
 #include "bitmap.h"
 
 Bitmap::Bitmap()
 {
+    
 }
 
 /**
@@ -21,8 +23,22 @@ Bitmap::Bitmap()
  */
 std::istream& operator>>(std::istream& in, Bitmap& b)
 {
+    uint32_t size;
+    // Bitmap Type
+    in >> b.bitmap_type[0] >> b.bitmap_type[1];
+    std::cout << "Bitmap Type read:  " << b.bitmap_type[0] << b.bitmap_type[1] << std::endl;
+    if(strncmp(b.bitmap_type, "BM", 2) != 0) {
+        throw(BitmapException("Error reading bitmap_type", (uint32_t)1));
+    }
+
+    // Length in Bytes
+    in.read((char*)&size, 4);
+    std::cout << "Length read:  " << std::hex << size << std::endl;
+    b.length = size;
+
     return in;
 }
+
 /**
  * Write the binary representation of the image to the stream.
  *
@@ -108,5 +124,15 @@ void scaleUp(Bitmap& b) {}
  */
 void scaleDown(Bitmap& b) {}
 
+BitmapException::BitmapException(const std::string& message, uint32_t position) {
+    _message  = message;
+    _position = position;
+}
+BitmapException::BitmapException(std::string&& message, uint32_t position) {
+    _message  = message;
+    _position = position;
+}
 
-void BitmapException::print_exception() {}
+void BitmapException::print_exception() {
+    std::cout << "Exception:  " << _message << " - Position " << _position << std::endl;
+}
