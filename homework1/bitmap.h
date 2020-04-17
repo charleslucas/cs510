@@ -24,6 +24,8 @@ private:
     uint32_t  alpha_mask;             // Alpha Mask                           (4 bytes - only exists in 32-bit image)
     char      color_space[68];        // Color Space Information              (68 bytes - only exists in 32-bit image - ignore)
 
+    char*     data[];                 // Actual picture data                  (Variable number of bits, formatted depending on 24/32 bit color) 
+
     /**
      * Read in an image.
      * reads a bitmap in from the stream
