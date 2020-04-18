@@ -44,7 +44,7 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
 
     // Length in Bytes                      (4 bytes)
     in.read((char*)&b.length, 4);
-    if (DEBUG) std::cout << "Length read [" << std::dec << position << "]:  " << std::hex << b.length << std::endl;
+    if (DEBUG) std::cout << "Length read [" << std::dec << position << "]:  " << std::dec << b.length << std::endl;
     position += sizeof(b.length);
 
     // Garbage                              (4 bytes - ignore)
@@ -90,8 +90,8 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
 
     // Compression Method being Used        (4 bytes - always 0(24-bit) or 3(32-bit))
     in.read((char*)&b.compression_method, 4);
-    if (DEBUG) std::cout << "Compression Method read [" << std::dec << position << "]:  " << std::dec << b.compression_method << std::endl;
-    if(!(b.color_depth == 24 && b.compression_method == 0) || (b.color_depth == 32 && b.compression_method == 3)) {
+    if (DEBUG) std::cout << "Compression method read [" << std::dec << position << "]:  " << std::dec << b.compression_method << std::endl;
+    if(!((b.color_depth == 24 && b.compression_method == 0) || (b.color_depth == 32 && b.compression_method == 3))) {
         throw(BitmapException("Error reading compression_method", position));
     }
     position += sizeof(b.compression_method);
@@ -149,14 +149,37 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
         position += sizeof(b.color_space);
     }
 
-    if (DEBUG) std::cout << std::endl;
+    if (DEBUG) std::cout << std::endl << "Finished parsing header - " << position << " bytes read." << std::endl << std::endl;
 
+    // If color_depth is 24, our rows begin on 4-byte boundaries.
+    // Since pixels are 3 bytes, there may be one or more padding bytes at the end of the row.
     if (b.color_depth == 24 && ((b.width_in_pixels * 3) % 4) != 0) {
-        row_padding_size = ((b.width_in_pixels * 3) + 1) % 4;
+        row_padding_size = 4 - ((b.width_in_pixels * 3) % 4)
         if (DEBUG) std::cout << "Row padding = " << row_padding_size << std::endl;
     }
 
-    std::cout << "Bitmap parsed successfully!" << std::endl;
+    if (b.color_depth == 24) {
+        int  row_length = b.width_in_pixels * 3;
+        char row_buffer[row_length];
+        char padding_buffer[row_padding_size];
+
+        for (int i=0; i<b.height_in_pixels; i++) {
+            in.read(row_buffer, sizeof(row_buffer));
+            position += sizeof(row_buffer);
+            b.data.append(row_buffer, sizeof(row_buffer));  // Keep the row buffer, ignore the padding buffer
+            in.read(padding_buffer, sizeof(padding_buffer));
+            position += sizeof(padding_buffer);
+        }
+    }
+    else {
+        int data_length = b.length - position;
+        char buffer[data_length];
+        in.read(buffer, sizeof(buffer));
+        b.data.append(buffer, sizeof(buffer));
+        position += sizeof(buffer);
+    }
+
+    std::cout << "Bitmap parsed successfully - " << position << " bytes read." << std::endl;
 
     return in;
 }
