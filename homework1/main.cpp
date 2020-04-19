@@ -12,6 +12,7 @@ int main(int argc, char** argv)
         cout << "usage:\n"
              << "bitmap option inputfile.bmp outputfile.bmp\n"
              << "options:\n"
+             << "  -n no transform\n"
              << "  -c cell shade\n"
              << "  -g gray scale\n"
              << "  -p pixelate\n"
@@ -49,6 +50,9 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    if(flag == "-n"s)
+    {
+    }
     if(flag == "-c"s)
     {
         cellShade(image);

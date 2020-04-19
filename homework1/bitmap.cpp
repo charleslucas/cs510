@@ -10,7 +10,7 @@
 #include <iomanip>
 #include "bitmap.h"
 
-#define DEBUG 1   // Turn on/off all debug messages
+#define DEBUG 0   // Turn on/off all debug messages
 
 Bitmap::Bitmap()
 {
@@ -169,14 +169,15 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
 
         b.data.reserve(row_data_length * b.height_in_pixels);  // If we're going to throw a memory exception, do it here
 
-        std::cout << "row_data_length:  " << std::dec << row_data_length << std::endl;
-        std::cout << "Size of b.data:  " << std::dec << b.data.size() << std::endl;
+        if (DEBUG) std::cout << "row_data_length:  " << std::dec << row_data_length << std::endl;
+        if (DEBUG) std::cout << "Size of b.data:  " << std::dec << b.data.size() << std::endl;
+
         for (int i=0; i<b.height_in_pixels; i++) {
             in.read(row_buffer, sizeof(row_buffer));  // Read in the entire row of data, including the padding
             file_offset += sizeof(row_buffer);
             b.data.insert(b.data.end(), row_buffer, row_buffer + row_data_length);  // Only transfer the data into the vector, not the padding
 
-            // Print the first rows we read in
+            // DEBUG - Print the first two rows we read in
             if ((DEBUG) && (i == 0 || i == 1)) {
                 std::cout << "Size of b.data:  " << b.data.size() << std::endl;
                 for (int j = row_data_length * i; j < (row_data_length * i) + row_data_length ; j++) {
@@ -344,7 +345,7 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
         int  row_data_length = b.width_in_pixels * 3;
         int  row_total_length = row_data_length + row_padding_size;
         const char *data_pointer;
-        const char padding[3] = {'Z','Z','Z'};
+        const char padding[3] = {NULL,NULL,NULL};
         int data_offset = 0;
 
         for (int i = 0; i < b.height_in_pixels; i++) {
@@ -368,10 +369,13 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
         file_offset += data_length;
     }
 
-    // TODO:  Make sure our end pointer matches the bitmap length
-
-    std::cout << "Bitmap written successfully - " << file_offset << " bytes written." << std::endl;
-    
+    // Double-check that our final pointer value matches the expected bitmap length
+    if (file_offset == b.length) {
+        std::cout << "Bitmap written successfully - " << file_offset << " bytes written." << std::endl;
+    }
+    else {
+        std::cout << "Error:  Mismatch between expected file size and bytes written - expected file size = " << std::dec << b.length << ", bytes written = " << file_offset << std::endl;
+    }
     return out;
 }
 
@@ -383,7 +387,17 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
  * This has the effect of making the image look like.
  * it was colored.
  */
-void cellShade(Bitmap& b) {}
+void cellShade(Bitmap& b) {
+    std::cout << "Applying cell shading transform." << std::endl;
+    for (int i = 0; i < b.data.size(); i++) {
+        uint temp_value = b.data[i];
+        //printf("value before:  %02hhx ", temp_value);
+        if      (temp_value <= 64)                      b.data[i] = 0;
+        else if (temp_value >  64 && temp_value < 192)  b.data[i] = 128;
+        else if (temp_value >= 192)                     b.data[i] = 255;
+        //printf(" - value after:  %02hhx\n",  b.data[i]);
+    }
+}
 
 /**
  * Grayscales an image by averaging all of the components.
