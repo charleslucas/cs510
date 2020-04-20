@@ -10,13 +10,13 @@
 #include <iomanip>
 #include "bitmap.h"
 
-#define DEBUG 0   // Turn on/off all debug messages
+#define DEBUG 0  // Turn on/off all debug messages
 
 Bitmap::Bitmap() {}
 
 void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha) {
     std::vector<char>::iterator ptr;
-    //std::cout << "Reading pixel color values at " << x << "," << y << std::endl;
+    //if (DEBUG) std::cout << "Reading pixel color values at " << x << "," << y << std::endl;
 
     if (this->color_depth == 32) {
         uint32_t color_value;   // 4-byte pixel color value in format [N bits of red, N bits of green, N bits of blue, N bits of alpha]
@@ -95,7 +95,7 @@ void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &a
 void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha) {
     std::vector<char>::iterator ptr;
 
-    //std::cout << "Writing pixel color values at " << x << "," << y << std::endl;
+    if (DEBUG) std::cout << "Writing pixel color values at " << "x = " << x << ", y = " << y << " - index = " << (((y * this->width_in_pixels) + x) * 4) << std::endl;
 
     if (this->color_depth == 32) {
         uint32_t color_value = 0;   // 4-byte pixel color value in format [N bits of red, N bits of green, N bits of blue, N bits of alpha]
@@ -155,14 +155,14 @@ void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &
             color_value = color_value | temp_value;  // OR our red value into the appropriate bits in the color value
         }
 
-        //std::cout << "ColorValue = " << std::hex << color_value << " Red  " << " = " << std::hex << red_masked << "  Green  " << " = " << std::hex << green_masked << "  Blue  " << " = " << std::hex << blue_masked << "  Alpha  " << " = " << std::hex << alpha_masked << std::endl;
-
         // Write our combined value back into the proper bytes in the vector
         for (int i = 0; i < 4; i++) {
             uint8_t byte;
 
             byte = (color_value >> (i * 8)) & 0x000000FF;  // Get the value one byte at a time
             *(ptr+i) = byte;
+            //std::cout << "ColorValue[" << std::dec << i << "] = " << std::hex << byte << " ptr  " << " = " << std::hex << *(ptr+i) << std::endl;
+
         }
 
     }
@@ -573,8 +573,7 @@ void grayscale(Bitmap& b) {
     uint red;
     uint green;
     uint blue;
-    uint alpha;  // Unused
-
+    uint alpha;  // Unused for this transform
 
     std::cout << "Applying grayscale transform." << std::endl;
 
@@ -590,9 +589,89 @@ void grayscale(Bitmap& b) {
 }
 
 /**
- * Pixelats an image by creating groups of 16*16 pixel blocks.
+ * Pixelates an image by creating groups of 16*16 pixel blocks.
  */
-void pixelate(Bitmap& b) {}
+void pixelate(Bitmap& b) {
+    std::vector<char>::iterator ptr;
+    uint red;
+    uint green;
+    uint blue;
+    BitmapPixel pixel;
+
+    std::cout << "Applying pixelate transform." << std::endl;
+
+
+    // Iterate over all the pixels in the data vector and average their color values
+    // (Treating it as a one-dimensional array rather than a two-dimensional picture for simplicity)
+    for (int i = 0; i < (b.width_in_pixels * b.height_in_pixels); i++) {
+        pixel.init(b, i, 0);
+        pixel.getrgb(red, green, blue);
+        //std::cout << "Before:  Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl;
+        red = green = blue = (red + green + blue)/3;  // Set all colors to the average of all colors
+        pixel.setrgb(red, green, blue);
+        //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
+        pixel.write();
+    }
+}
+
+///**
+// * Pixelates an image by creating groups of 16*16 pixel blocks.
+// */
+//void pixelate(Bitmap& b) {
+//    BitmapPixel pixelsquare[4][4];  // 16-pixel square to become one large pixel
+//    int xoffset;
+//    int yoffset;
+//
+//    std::cout << "Applying pixelate transform." << std::endl;
+//
+//    // Iterate over all the possible full 16x16 pixels
+//    while (yoffset + 16 < b.height_in_pixels) {
+//        uint average_red   = 0;
+//        uint average_green = 0;
+//        uint average_blue  = 0;
+//
+//        if (DEBUG) std::cout << std::endl << "Calculating average for large pixel starting at x = " << std::dec << xoffset << "," << yoffset << std::endl;
+//
+//        for (int y = 0; y < 4; y++) {
+//            for (int x = 0; x < 4; x++) {
+//                uint red, green, blue;
+//
+//                pixelsquare[y][x].init(b, x + xoffset, y + yoffset);  // Get the current values of all the pixels from the bitmap vector
+//                pixelsquare[y][x].getrgb(red, green, blue);
+//                if (DEBUG) std::cout << std::dec << "x = " << x << ", y = " << y << "  red = " << std::hex << red << "  green = " << green << "  blue = " << blue << std::endl;
+//                average_red   += red;
+//                average_green += green;
+//                average_blue  += blue;
+//            }
+//        }
+//
+//        if (DEBUG) std::cout << "avg_red = " << std::hex << average_red << "  avg_green = " << average_green << "  avg_blue = " << average_blue << std::endl;
+//
+//        average_red   /= 16;
+//        average_green /= 16;
+//        average_blue  /= 16;
+//
+//        if (DEBUG) std::cout << "avg_red = " << std::hex << average_red << "  avg_green = " << average_green << "  avg_blue = " << average_blue << std::endl;
+//
+//        for (int y = 0; y < 4; y++) {
+//            for (int x = 0; x < 4; x++) {
+//                if (DEBUG) std::cout << "pixelsquare[" << std::dec << x << "][" << y << "]:" << "avg_red = " << std::hex << pixelsquare[y][x].red << "  avg_green = " << pixelsquare[y][x].green << "  avg_blue = " << pixelsquare[y][x].blue << std::endl;
+//                pixelsquare[y][x].setrgb(average_red, average_green, average_blue);
+//                if (DEBUG) std::cout << "pixelsquare[" << std::dec << x << "][" << y << "]:" << "avg_red = " << std::hex << pixelsquare[y][x].red << "  avg_green = " << pixelsquare[y][x].green << "  avg_blue = " << pixelsquare[y][x].blue << std::endl;
+//                pixelsquare[y][x].write(b);                            // Set the new vector values of all the pixels from our average
+//            }
+//            xoffset += 16;  // Move to the next 16x16 square width-wise
+//            std::cout << std::endl;
+//        }
+//
+//        xoffset += 16;                            // Advance to the next large pixel in the row
+//        if (xoffset + 16 < b.width_in_pixels) {   // unless we've overstepped our bounds, then wrap and step to the next row
+//            xoffset = 0;
+//            yoffset += 16;
+//        }
+//        if (DEBUG) std::cout << std::endl;
+//    }
+//}
 
 /**
  * Use gaussian bluring to blur an image.
@@ -644,6 +723,9 @@ void scaleUp(Bitmap& b) {}
  */
 void scaleDown(Bitmap& b) {}
 
+/**
+ * BitmapException denotes an exception from reading in a bitmap.
+ */
 BitmapException::BitmapException(const std::string& message, uint32_t file_offset) {
     _message  = message;
     _position = file_offset;
@@ -655,4 +737,55 @@ BitmapException::BitmapException(std::string&& message, uint32_t file_offset) {
 
 void BitmapException::print_exception() {
     std::cout << "Exception:  " << _message << " - Position " << _position << std::endl;
+}
+
+/**
+ * BitmapPixel - to handle functions associated with Bitmap pixel transforms
+ */
+BitmapPixel::BitmapPixel() {}
+BitmapPixel::BitmapPixel(Bitmap& bptr, int xin, int yin) {
+    b = &bptr;
+    x = xin;
+    y = yin;
+    b->readPixel(x, y, red, green, blue, alpha);
+}
+void BitmapPixel::init(Bitmap& bptr, int xin, int yin) {
+    b = &bptr;
+    x = xin;
+    y = yin;
+    b->readPixel(x, y, red, green, blue, alpha);
+}
+void BitmapPixel::write() {
+    b->writePixel(x, y, red, green, blue, alpha);
+    return;
+}
+void BitmapPixel::getrgb(uint &redvalue, uint &greenvalue, uint &bluevalue) {
+    redvalue   = red;
+    greenvalue = green;
+    bluevalue  = blue;
+
+    return;
+}
+void BitmapPixel::getrgba(uint &redvalue, uint &greenvalue, uint &bluevalue, uint &alphavalue) {
+    redvalue   = red;
+    greenvalue = green;
+    bluevalue  = blue;
+    alphavalue = alpha;
+
+    return;
+}
+void BitmapPixel::setrgb(uint &redvalue, uint &greenvalue, uint &bluevalue) {
+    red   = redvalue;
+    green = greenvalue;
+    blue  = bluevalue;
+
+    return;
+}
+void BitmapPixel::setrgba(uint &redvalue, uint &greenvalue, uint &bluevalue, uint &alphavalue) {
+    red   = redvalue;
+    green = greenvalue;
+    blue  = bluevalue;
+    alpha = alphavalue;
+
+    return;
 }

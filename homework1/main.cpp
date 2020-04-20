@@ -50,9 +50,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    if(flag == "-n"s)
-    {
-    }
+    if(flag == "-n"s) {}
     if(flag == "-c"s)
     {
         cellShade(image);

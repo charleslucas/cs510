@@ -161,22 +161,31 @@ public:
 };
 
 
-///**
-// * BitmapPixel - to handle functions associated with Bitmap pixel transforms
-// */
-// class BitmapPixel
-// {
-//     uint32_t red;
-//     uint32_t green;
-//     uint32_t blue;
-//     uint32_t alpha;        // Currently not used
-//     uint32_t color_depth;  // Currently only supports 24 or 32
-//
-// public:
-//    BitmapPixel();
-//
-//    /**
-//     * Averages the values of the RGB color fields
-//     */
-//    void average(Pixel& p);
-// }
+/**
+ * BitmapPixel - to handle functions associated with Bitmap pixel transforms
+ */
+ class BitmapPixel
+ {
+ public:
+    Bitmap  *b;      // Pointer to the bitmap this pixel exists in
+    int      x;
+    int      y;
+    uint     red;
+    uint     green;
+    uint     blue;
+    uint     alpha;
+
+    BitmapPixel();
+    BitmapPixel(Bitmap& b, int x, int y);
+    void init  (Bitmap& b, int x, int y);
+    void write ();
+    void getrgb (uint &redvalue, uint &greenvalue, uint &bluevalue);
+    void getrgba(uint &redvalue, uint &greenvalue, uint &bluevalue, uint &alphavalue);
+    void setrgb (uint &redvalue, uint &greenvalue, uint &bluevalue);
+    void setrgba(uint &redvalue, uint &greenvalue, uint &bluevalue, uint &alphavalue);
+
+    /**
+     * Averages the values of the RGB color fields
+     */
+    //void average(Pixel& p);
+ };
