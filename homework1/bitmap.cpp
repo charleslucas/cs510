@@ -11,6 +11,7 @@
 #include "bitmap.h"
 
 #define DEBUG 0  // Turn on/off all debug messages
+#define PIXEL_SIZE 16
 
 Bitmap::Bitmap() {}
 
@@ -26,7 +27,7 @@ void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &a
         uint32_t alpha_unmasked;
  
         ptr = data.begin();
-        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the red value of the pixel at x,y
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the blue value of the pixel at x,y
 
         // Concatenate our ASCII character values into one 32-bit value 
         color_value = (uint8_t)*(ptr+3) << 24 | (uint8_t)*(ptr+2) << 16 | (uint8_t)*(ptr+1) << 8 | (uint8_t)*ptr;
@@ -82,11 +83,11 @@ void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &a
     }
     else {  // Currently only supports 24-bit color depth
         ptr = data.begin();
-        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the red value of the pixel at x,y
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the blue value of the pixel at x,y
 
-        red   = (uint8_t)*ptr;
+        red   = (uint8_t)*(ptr+2);
         green = (uint8_t)*(ptr+1);
-        blue  = (uint8_t)*(ptr+2);
+        blue  = (uint8_t)*ptr;
     }
 
     return;
@@ -105,7 +106,7 @@ void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &
         uint32_t alpha_masked = 0;
  
         ptr = data.begin();
-        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the red value of the pixel at x,y
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the blue value of the pixel at x,y
 
         // Bit shift the red color values to be mask-aligned and OR them into the combined color value
         uint temp_mask = this->red_mask;
@@ -168,11 +169,11 @@ void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &
     }
     else {  // Currently only supports 24-bit color depth
         ptr = data.begin();
-        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the red value of the pixel at x,y
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the blue value of the pixel at x,y
 
-        *ptr     = (uint8_t)red  ;
+        *(ptr+2) = (uint8_t)red  ;
         *(ptr+1) = (uint8_t)green;
-        *(ptr+2) = (uint8_t)blue ;
+        *ptr     = (uint8_t)blue ;
     }
 
     return;
@@ -593,85 +594,56 @@ void grayscale(Bitmap& b) {
  */
 void pixelate(Bitmap& b) {
     std::vector<char>::iterator ptr;
-    uint red;
-    uint green;
-    uint blue;
-    BitmapPixel pixel;
+    BitmapPixel pixel[PIXEL_SIZE][PIXEL_SIZE];
+    int  number_of_colors;
 
     std::cout << "Applying pixelate transform." << std::endl;
 
+    if (b.color_depth == 32) number_of_colors = 4;
+    else                     number_of_colors = 3;
 
-    // Iterate over all the pixels in the data vector and average their color values
-    // (Treating it as a one-dimensional array rather than a two-dimensional picture for simplicity)
-    for (int i = 0; i < (b.width_in_pixels * b.height_in_pixels); i++) {
-        pixel.init(b, i, 0);
-        pixel.getrgb(red, green, blue);
-        //std::cout << "Before:  Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl;
-        red = green = blue = (red + green + blue)/3;  // Set all colors to the average of all colors
-        pixel.setrgb(red, green, blue);
-        //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
-        pixel.write();
+    // Iterate over all the pixels in the picture in blocks of 16
+    for (int y = 0; y <= (b.height_in_pixels-16); y += PIXEL_SIZE) {
+        for (int x = 0; x <= (b.width_in_pixels-16); x += PIXEL_SIZE) {
+            uint average_red   = 0;
+            uint average_green = 0;
+            uint average_blue  = 0;
+
+            for (int py = 0; py < PIXEL_SIZE; py++) {
+                for (int px = 0; px < PIXEL_SIZE; px++) {
+                    uint red   = 0;
+                    uint green = 0;
+                    uint blue  = 0;
+
+
+                    // Now iterate over all the pixels inside the block of 16
+                    pixel[py][px].init(b, x + px, y + py);  // Init from the actual image pixel coordinates
+                    pixel[py][px].getrgb(red, green, blue);
+
+                    average_red   += red;
+                    average_green += green;
+                    average_blue  += blue;
+                }
+            }
+
+            //std::cout << "Before:  Red = " << std::hex << average_red << " Green = " << average_green << " Blue = " << average_blue << std::endl;
+            average_red   /= (PIXEL_SIZE * PIXEL_SIZE);
+            average_green /= (PIXEL_SIZE * PIXEL_SIZE);
+            average_blue  /= (PIXEL_SIZE * PIXEL_SIZE);
+            //std::cout << "After:   Red = " << std::hex << average_red << " Green = " << average_green << " Blue = " << average_blue << std::endl << std::endl;
+
+            for (int py = 0; py < PIXEL_SIZE; py++) {
+                for (int px = 0; px < PIXEL_SIZE; px++) {
+                    pixel[py][px].setrgb(average_red, average_green, average_blue);
+                    //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
+                    pixel[py][px].write();
+                }
+            }
+
+        }
     }
 }
 
-///**
-// * Pixelates an image by creating groups of 16*16 pixel blocks.
-// */
-//void pixelate(Bitmap& b) {
-//    BitmapPixel pixelsquare[4][4];  // 16-pixel square to become one large pixel
-//    int xoffset;
-//    int yoffset;
-//
-//    std::cout << "Applying pixelate transform." << std::endl;
-//
-//    // Iterate over all the possible full 16x16 pixels
-//    while (yoffset + 16 < b.height_in_pixels) {
-//        uint average_red   = 0;
-//        uint average_green = 0;
-//        uint average_blue  = 0;
-//
-//        if (DEBUG) std::cout << std::endl << "Calculating average for large pixel starting at x = " << std::dec << xoffset << "," << yoffset << std::endl;
-//
-//        for (int y = 0; y < 4; y++) {
-//            for (int x = 0; x < 4; x++) {
-//                uint red, green, blue;
-//
-//                pixelsquare[y][x].init(b, x + xoffset, y + yoffset);  // Get the current values of all the pixels from the bitmap vector
-//                pixelsquare[y][x].getrgb(red, green, blue);
-//                if (DEBUG) std::cout << std::dec << "x = " << x << ", y = " << y << "  red = " << std::hex << red << "  green = " << green << "  blue = " << blue << std::endl;
-//                average_red   += red;
-//                average_green += green;
-//                average_blue  += blue;
-//            }
-//        }
-//
-//        if (DEBUG) std::cout << "avg_red = " << std::hex << average_red << "  avg_green = " << average_green << "  avg_blue = " << average_blue << std::endl;
-//
-//        average_red   /= 16;
-//        average_green /= 16;
-//        average_blue  /= 16;
-//
-//        if (DEBUG) std::cout << "avg_red = " << std::hex << average_red << "  avg_green = " << average_green << "  avg_blue = " << average_blue << std::endl;
-//
-//        for (int y = 0; y < 4; y++) {
-//            for (int x = 0; x < 4; x++) {
-//                if (DEBUG) std::cout << "pixelsquare[" << std::dec << x << "][" << y << "]:" << "avg_red = " << std::hex << pixelsquare[y][x].red << "  avg_green = " << pixelsquare[y][x].green << "  avg_blue = " << pixelsquare[y][x].blue << std::endl;
-//                pixelsquare[y][x].setrgb(average_red, average_green, average_blue);
-//                if (DEBUG) std::cout << "pixelsquare[" << std::dec << x << "][" << y << "]:" << "avg_red = " << std::hex << pixelsquare[y][x].red << "  avg_green = " << pixelsquare[y][x].green << "  avg_blue = " << pixelsquare[y][x].blue << std::endl;
-//                pixelsquare[y][x].write(b);                            // Set the new vector values of all the pixels from our average
-//            }
-//            xoffset += 16;  // Move to the next 16x16 square width-wise
-//            std::cout << std::endl;
-//        }
-//
-//        xoffset += 16;                            // Advance to the next large pixel in the row
-//        if (xoffset + 16 < b.width_in_pixels) {   // unless we've overstepped our bounds, then wrap and step to the next row
-//            xoffset = 0;
-//            yoffset += 16;
-//        }
-//        if (DEBUG) std::cout << std::endl;
-//    }
-//}
 
 /**
  * Use gaussian bluring to blur an image.
