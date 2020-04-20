@@ -12,10 +12,172 @@
 
 #define DEBUG 0   // Turn on/off all debug messages
 
-Bitmap::Bitmap()
-{
-    
+Bitmap::Bitmap() {}
+
+void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha) {
+    std::vector<char>::iterator ptr;
+    //std::cout << "Reading pixel color values at " << x << "," << y << std::endl;
+
+    if (this->color_depth == 32) {
+        uint32_t color_value;   // 4-byte pixel color value in format [N bits of red, N bits of green, N bits of blue, N bits of alpha]
+        uint32_t red_unmasked;
+        uint32_t green_unmasked;
+        uint32_t blue_unmasked;
+        uint32_t alpha_unmasked;
+ 
+        ptr = data.begin();
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the red value of the pixel at x,y
+
+        // Concatenate our ASCII character values into one 32-bit value 
+        color_value = (uint8_t)*(ptr+3) << 24 | (uint8_t)*(ptr+2) << 16 | (uint8_t)*(ptr+1) << 8 | (uint8_t)*ptr;
+         
+        //std::cout << "Color Value " << std::dec << (((y * this->width_in_pixels) + x) * 4) << " = "<< std::hex << color_value << std::endl;
+
+        // Use the color masks to mask off the bits that aren't relevant for each color
+        red_unmasked   = color_value & this->red_mask;
+        green_unmasked = color_value & this->green_mask;
+        blue_unmasked  = color_value & this->blue_mask;
+        alpha_unmasked = color_value & this->alpha_mask;
+
+        //std::cout << "ColorValue = " << std::hex << color_value << " Red  " << " = " << std::hex << red_unmasked << "  Green  " << " = " << std::hex << green_unmasked << "  Blue  " << " = " << std::hex << blue_unmasked << "  Alpha  " << " = " << std::hex << alpha_unmasked << std::endl;
+
+        // Bit shift the unmasked pixel values to be bit0-aligned according to the mask value
+        uint temp_mask = this->red_mask;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                temp_mask    = temp_mask >> 1;
+                red_unmasked = red_unmasked >> 1;
+            }
+        }
+
+        temp_mask = this->green_mask;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                temp_mask      = temp_mask >> 1;
+                green_unmasked = green_unmasked >> 1;
+            }
+        }
+
+        temp_mask = this->blue_mask;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                temp_mask      = temp_mask >> 1;
+                blue_unmasked  = blue_unmasked >> 1;
+            }
+        }
+
+        temp_mask = this->alpha_mask;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                temp_mask      = temp_mask >> 1;
+                alpha_unmasked = alpha_unmasked >> 1;
+            }
+        }
+
+        // Cast the calculated values back to unit before returning
+        red   = red_unmasked;
+        green = green_unmasked;
+        blue  = blue_unmasked;
+        alpha = alpha_unmasked;
+    }
+    else {  // Currently only supports 24-bit color depth
+        ptr = data.begin();
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the red value of the pixel at x,y
+
+        red   = (uint8_t)*ptr;
+        green = (uint8_t)*(ptr+1);
+        blue  = (uint8_t)*(ptr+2);
+    }
+
+    return;
 }
+
+void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha) {
+    std::vector<char>::iterator ptr;
+
+    //std::cout << "Writing pixel color values at " << x << "," << y << std::endl;
+
+    if (this->color_depth == 32) {
+        uint32_t color_value = 0;   // 4-byte pixel color value in format [N bits of red, N bits of green, N bits of blue, N bits of alpha]
+        uint32_t red_masked = 0;
+        uint32_t green_masked = 0;
+        uint32_t blue_masked = 0;
+        uint32_t alpha_masked = 0;
+ 
+        ptr = data.begin();
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 4;  // Should point to the red value of the pixel at x,y
+
+        // Bit shift the red color values to be mask-aligned and OR them into the combined color value
+        uint temp_mask = this->red_mask;
+        uint temp_value = red;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                //std::cout << "Red Mask " << std::dec << (((y * this->width_in_pixels) + x) * 4) << " = "<< std::hex << temp_mask << "  temp_value = " << temp_value << std::endl;
+                temp_mask  = temp_mask  >> 1;
+                temp_value = temp_value << 1;
+            }
+            color_value = color_value | temp_value;  // OR our red value into the appropriate bits in the color value
+        }
+
+        // Bit shift the green color values to be mask-aligned and OR them into the combined color value
+        temp_mask = this->green_mask;
+        temp_value = green;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                //std::cout << "Green Mask " << std::dec << (((y * this->width_in_pixels) + x) * 4) << " = "<< std::hex << temp_mask << "  temp_value = " << temp_value << std::endl;
+                temp_mask  = temp_mask  >> 1;
+                temp_value = temp_value << 1;
+            }
+            color_value = color_value | temp_value;  // OR our red value into the appropriate bits in the color value
+        }
+
+        // Bit shift the blue color values to be mask-aligned and OR them into the combined color value
+        temp_mask = this->blue_mask;
+        temp_value = blue;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                //std::cout << "Blue Mask " << std::dec << (((y * this->width_in_pixels) + x) * 4) << " = "<< std::hex << temp_mask << "  temp_value = " << temp_value << std::endl;
+                temp_mask   = temp_mask  >> 1;
+                temp_value  = temp_value << 1;
+            }
+            color_value = color_value | temp_value;  // OR our red value into the appropriate bits in the color value
+        }
+
+        // Bit shift the alpha color values to be mask-aligned and OR them into the combined color value
+        temp_mask = this->alpha_mask;
+        temp_value = alpha;
+        if (temp_mask > 0) {
+            while (temp_mask%2 != 1) {   // While the mask is not odd
+                //std::cout << "Alpha Mask " << std::dec << (((y * this->width_in_pixels) + x) * 4) << " = "<< std::hex << temp_mask << "  temp_value = " << temp_value << std::endl;
+                temp_mask   = temp_mask  >> 1;
+                temp_value  = temp_value << 1;
+            }
+            color_value = color_value | temp_value;  // OR our red value into the appropriate bits in the color value
+        }
+
+        //std::cout << "ColorValue = " << std::hex << color_value << " Red  " << " = " << std::hex << red_masked << "  Green  " << " = " << std::hex << green_masked << "  Blue  " << " = " << std::hex << blue_masked << "  Alpha  " << " = " << std::hex << alpha_masked << std::endl;
+
+        // Write our combined value back into the proper bytes in the vector
+        for (int i = 0; i < 4; i++) {
+            uint8_t byte;
+
+            byte = (color_value >> (i * 8)) & 0x000000FF;  // Get the value one byte at a time
+            *(ptr+i) = byte;
+        }
+
+    }
+    else {  // Currently only supports 24-bit color depth
+        ptr = data.begin();
+        ptr = ptr + ((y * this->width_in_pixels) + x) * 3;  // Should point to the red value of the pixel at x,y
+
+        *ptr     = (uint8_t)red  ;
+        *(ptr+1) = (uint8_t)green;
+        *(ptr+2) = (uint8_t)blue ;
+    }
+
+    return;
+}
+
 
 /**
  * Read in an image.
@@ -392,8 +554,8 @@ void cellShade(Bitmap& b) {
     uint8_t value;
 
     std::cout << "Applying cell shading transform." << std::endl;
-    
-    // Iterate over all the byte value in the data vector and round to one of three values
+
+    // Iterate over all the byte values in the data vector and round to one of three values
     for (ptr = b.data.begin(); ptr < b.data.end(); ptr++) {
         value = *ptr;
         if      (value <= 64)                 value = 0;
@@ -404,9 +566,28 @@ void cellShade(Bitmap& b) {
 }
 
 /**
- * Grayscales an image by averaging all of the components.
+ * Grayscales an image by averaging all of the component colors.
  */
-void grayscale(Bitmap& b) {}
+void grayscale(Bitmap& b) {
+    std::vector<char>::iterator ptr;
+    uint red;
+    uint green;
+    uint blue;
+    uint alpha;  // Unused
+
+
+    std::cout << "Applying grayscale transform." << std::endl;
+
+    // Iterate over all the pixels in the data vector and average their color values
+    // (Treating it as a one-dimensional array rather than a two-dimensional picture for simplicity)
+    for (int i = 0; i < (b.width_in_pixels * b.height_in_pixels); i++) {
+        b.readPixel(i, 0, red, green, blue, alpha);
+        //std::cout << "Before:  Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl;
+        red = green = blue = (red + green + blue)/3;  // Set all colors to the average of all colors
+        //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
+        b.writePixel(i, 0, red, green, blue, alpha);
+    }
+}
 
 /**
  * Pixelats an image by creating groups of 16*16 pixel blocks.

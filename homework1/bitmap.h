@@ -57,6 +57,9 @@ public:
 
     std::vector<char> data;              // Actual picture data                  (Formatted depending on 24/32 bit color)
 
+    void readPixel (int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
+    void writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
+
 };
 
 /**
