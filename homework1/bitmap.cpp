@@ -388,14 +388,18 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
  * it was colored.
  */
 void cellShade(Bitmap& b) {
+    std::vector<char>::iterator ptr;
+    uint8_t value;
+
     std::cout << "Applying cell shading transform." << std::endl;
-    for (int i = 0; i < b.data.size(); i++) {
-        uint temp_value = b.data[i];
-        //printf("value before:  %02hhx ", temp_value);
-        if      (temp_value <= 64)                      b.data[i] = 0;
-        else if (temp_value >  64 && temp_value < 192)  b.data[i] = 128;
-        else if (temp_value >= 192)                     b.data[i] = 255;
-        //printf(" - value after:  %02hhx\n",  b.data[i]);
+    
+    // Iterate over all the byte value in the data vector and round to one of three values
+    for (ptr = b.data.begin(); ptr < b.data.end(); ptr++) {
+        value = *ptr;
+        if      (value <= 64)                 value = 0;
+        else if (value >  64 && value < 192)  value = 127;
+        else if (value >= 192)                value = 255;
+        *ptr = value;
     }
 }
 
