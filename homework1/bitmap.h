@@ -141,6 +141,14 @@ void scaleUp(Bitmap& b);
  */
 void scaleDown(Bitmap& b);
 
+/**
+ * Perform the image transforms depending on mode
+ * 0 = ROT90
+ * 1 = ROT180
+ * 2 = ROT270
+ */
+void imageTransform(Bitmap& b, uint mode);
+
 
 
 /**

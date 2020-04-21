@@ -745,23 +745,25 @@ void blur(Bitmap& b) {
 /**
  * rotates image 90 degrees, swapping the height and width.
  */
-void rot90(Bitmap& b) {
-    Bitmap outbmp = b;                  // Create a second bitmap to hold our output values
-    BitmapPixel source_pixel;           // Pixel object to hold the source data
-    BitmapPixel target_pixel;           // The pixel we will write back to the target image
-    int source_num_padding_bytes;       // The number of padding bytes in the source bitmap
-    int target_num_padding_bytes;       // The number of padding bytes in the target bitmap
+void imageTransform(Bitmap& b, uint mode) {
+    Bitmap outbmp = b;                   // Create a second bitmap to hold our output values
+    BitmapPixel source_pixel;            // Pixel object to hold the source data
+    BitmapPixel target_pixel;            // The pixel we will write back to the target image
+    uint source_num_padding_bytes;       // The number of padding bytes in the source bitmap
+    uint target_num_padding_bytes;       // The number of padding bytes in the target bitmap
 
-    // Swap the height and width values in our output bitmap
-    outbmp.setWidthinPixels(b.getHeightinPixels());
-    outbmp.setHeightinPixels(b.getWidthinPixels());
-
-    // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
-    source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
-    target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
-
-    outbmp.setFileLength(b.getFileLength() - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
-    outbmp.setDataSize  (b.getDataSize()   - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+    // Edit our output file header settings dependent on mode
+    if (mode == 0) {   // ROT90
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
+    if (mode == 1) {}  // ROT180
+    if (mode == 2) {   // ROT270
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
 
     // Iterate over all the pixels in the picture
     for (int y = 0; y < b.getHeightinPixels(); y++) {
@@ -782,9 +784,23 @@ void rot90(Bitmap& b) {
                 source_pixel.getrgb(red, green, blue);
             }
 
-            // *** Swap X and Y, but subtract Y from height so we don't reverse the image ***
-            target_x = y;
-            target_y = (outbmp.getHeightinPixels()-1) - x;
+            // Transform our picture depending on mode
+            if (mode == 0) {       // ROT90
+                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
+                target_x = y;
+                target_y = (outbmp.getHeightinPixels()-1) - x;
+            }
+            else if (mode == 1) {  // ROT180
+                // *** Reverse X and Y ***
+                target_x = (outbmp.getWidthinPixels()-1) - x;
+                target_y = (outbmp.getHeightinPixels()-1) - y;
+            }
+            else if (mode == 2) {  // ROT270
+                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
+                target_x = (outbmp.getWidthinPixels()-1) - y;
+                target_y = x;
+            }
+
             //std::cout << "Target pixel:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " rx/ry:  " << (outbmp.getHeightinPixels() - y) << "/" << (outbmp.getWidthinPixels() - x) << std::endl;
 
             // Write our copied pixel to the target image
@@ -799,20 +815,40 @@ void rot90(Bitmap& b) {
         }
     }
 
+    if (b.getWidthinPixels() != outbmp.getWidthinPixels() || b.getHeightinPixels() != outbmp.getHeightinPixels()) {
+        // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
+        source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+        target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+
+        outbmp.setFileLength(b.getFileLength() - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+        outbmp.setDataSize  (b.getDataSize()   - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+    }
+
     b = outbmp;  // Return outbmp instead of b
 
     return;
 }
 
 /**
+ * rotates image 90 degrees, swapping the height and width.
+ */
+void rot90(Bitmap& b) {
+    imageTransform(b, 0);  // Image transform mode 0 (ROT90)
+}
+
+/**
  * rotates an image by 180 degrees.
  */
-void rot180(Bitmap& b) {}
+void rot180(Bitmap& b) {
+    imageTransform(b, 1);  // Image transform mode 1 (ROT180)
+}
 
 /**
  * rotates image 270 degrees, swapping the height and width.
  */
-void rot270(Bitmap& b) {}
+void rot270(Bitmap& b) {
+    imageTransform(b, 2);  // Image transform mode 1 (ROT270)
+}
 
 /**
  * flips and image over the vertical axis.
