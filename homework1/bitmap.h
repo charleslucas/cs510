@@ -32,8 +32,6 @@ private:
 
 
 public:
-    Bitmap();
-
     char         bitmap_type[2];         // Bitmap Type                          (2 bytes - always "BM"/0x424D)
     uint32_t     length;                 // Length in Bytes                      (4 bytes)
     uint32_t     garbage;                // Garbage                              (4 bytes - ignore)
@@ -56,6 +54,8 @@ public:
     char         color_space[68];        // Color Space Information              (68 bytes - only exists in 32-bit image - ignore)
 
     std::vector<char> data;              // Actual picture data                  (Formatted depending on 24/32 bit color)
+
+    Bitmap();
 
     void readPixel (int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
     void writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha);

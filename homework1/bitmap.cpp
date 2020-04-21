@@ -10,8 +10,9 @@
 #include <iomanip>
 #include "bitmap.h"
 
-#define DEBUG 0  // Turn on/off all debug messages
-#define PIXEL_SIZE 16
+#define DEBUG 0          // Turn on/off all debug messages
+#define PIXEL_SIZE 16    // NxN array of pixels to average color over for pixellation
+#define GAUSS_SIZE 5     // NxN array of pixels to calulate gausian blue over for each pixel
 
 Bitmap::Bitmap() {}
 
@@ -587,15 +588,16 @@ void grayscale(Bitmap& b) {
         //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
         b.writePixel(i, 0, red, green, blue, alpha);
     }
+
+    return;
 }
 
 /**
  * Pixelates an image by creating groups of 16*16 pixel blocks.
  */
 void pixelate(Bitmap& b) {
-    std::vector<char>::iterator ptr;
-    BitmapPixel pixel[PIXEL_SIZE][PIXEL_SIZE];
-    int  number_of_colors;
+    BitmapPixel pixel[PIXEL_SIZE][PIXEL_SIZE];  // NxN array of pixels to average the color over
+    int  number_of_colors;                      // Number of color fields per pixes (24-bit vs 32-bit encoding)
 
     std::cout << "Applying pixelate transform." << std::endl;
 
@@ -626,29 +628,89 @@ void pixelate(Bitmap& b) {
                 }
             }
 
-            //std::cout << "Before:  Red = " << std::hex << average_red << " Green = " << average_green << " Blue = " << average_blue << std::endl;
             average_red   /= (PIXEL_SIZE * PIXEL_SIZE);
             average_green /= (PIXEL_SIZE * PIXEL_SIZE);
             average_blue  /= (PIXEL_SIZE * PIXEL_SIZE);
-            //std::cout << "After:   Red = " << std::hex << average_red << " Green = " << average_green << " Blue = " << average_blue << std::endl << std::endl;
 
+            // Write our averaged values back to all the sub-pixels
             for (int py = 0; py < PIXEL_SIZE; py++) {
                 for (int px = 0; px < PIXEL_SIZE; px++) {
                     pixel[py][px].setrgb(average_red, average_green, average_blue);
-                    //std::cout << "After:   Red = " << std::hex << red << " Green = " << green << " Blue = " << blue << std::endl << std::endl;
                     pixel[py][px].write();
                 }
             }
 
         }
     }
+
+    return;
 }
 
 
 /**
  * Use gaussian bluring to blur an image.
  */
-void blur(Bitmap& b) {}
+void blur(Bitmap& b) {
+    Bitmap outbmp = b;    // Create a second bitmap to hold our output values
+
+    BitmapPixel target_pixel;           // The target pixel we will modify the values for
+    BitmapPixel temp_pixel;             // Temporary pixel object to hold data while calculating
+    int         matrix[GAUSS_SIZE][GAUSS_SIZE] = {{1,  4,  6,  4, 1},
+                                                  {4, 16, 24, 16, 4},
+                                                  {6, 24, 36, 24, 6},
+                                                  {4, 16, 24, 16, 4},
+                                                  {1,  4,  6,  4, 1}};
+    int         gauss_offset = GAUSS_SIZE / 2;  // The number of pixels around the current pixes to calculate using
+    int         number_of_colors;               // Number of color fields per pixes (24-bit vs 32-bit encoding)
+
+    std::cout << "Applying gaussian blurring transform." << std::endl;
+    
+    if (b.color_depth == 32) number_of_colors = 4;
+    else                     number_of_colors = 3;
+
+    // Iterate over all the pixels in the picture except a 2-pixel stripe around the edges
+    for (int y = gauss_offset; y < (b.height_in_pixels-GAUSS_SIZE); y++) {
+        for (int x = gauss_offset; x < (b.width_in_pixels-GAUSS_SIZE); x++) {
+            uint original_red  ;
+            uint original_green;
+            uint original_blue ;
+            uint gauss_red   = 0;
+            uint gauss_green = 0;
+            uint gauss_blue  = 0;
+
+            // Initialize our target pixel (in the center of the matrix)
+            target_pixel.init(outbmp, x + gauss_offset, y + gauss_offset);    // Init from the center pixel coordinates (output bitmap)
+            target_pixel.getrgb(original_red, original_green, original_blue); // Get it's original values
+
+            // Iterate over all the matrix values, multiply them by the R/G/B value of that pixel, and add them all together.
+            for (int py = 0; py < GAUSS_SIZE; py++) {
+                for (int px = 0; px < GAUSS_SIZE; px++) {
+                    uint pxred   = 0;
+                    uint pxgreen = 0;
+                    uint pxblue  = 0;
+
+                    temp_pixel.init(b, x + px, y + py);  // Init from the bitmap image pixel coordinates
+                    temp_pixel.getrgb(pxred, pxgreen, pxblue);
+
+                    gauss_red   += (pxred   * matrix[py][px]);
+                    gauss_green += (pxgreen * matrix[py][px]);
+                    gauss_blue  += (pxblue  * matrix[py][px]);
+                }
+            }
+
+            gauss_red   /= 256;
+            gauss_green /= 256;
+            gauss_blue  /= 256;
+
+            target_pixel.setrgb(gauss_red, gauss_green, gauss_blue);
+            target_pixel.write();  // Write our calculated files to the output bitmap
+        }
+    }
+
+    b = outbmp;  // Return outbmp instead of b
+
+    return;
+}
 
 /**
  * rotates image 90 degrees, swapping the height and width.
