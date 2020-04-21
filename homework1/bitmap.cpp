@@ -10,7 +10,7 @@
 #include <iomanip>
 #include "bitmap.h"
 
-#define DEBUG 0          // Turn on/off all debug messages
+#define DEBUG 1          // Turn on/off all debug messages
 #define PIXEL_SIZE 16    // NxN array of pixels to average color over for pixellation
 #define GAUSS_SIZE 5     // NxN array of pixels to calulate gausian blue over for each pixel
 
@@ -97,7 +97,7 @@ void Bitmap::readPixel(int x, int y, uint &red, uint &green, uint &blue, uint &a
 void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha) {
     std::vector<char>::iterator ptr;
 
-    if (DEBUG) std::cout << "Writing pixel color values at " << "x = " << x << ", y = " << y << " - index = " << (((y * this->width_in_pixels) + x) * 4) << std::endl;
+    //if (DEBUG) std::cout << "Writing pixel color values at " << "x = " << x << ", y = " << y << " - index = " << (((y * this->width_in_pixels) + x) * 4) << std::endl;
 
     if (this->color_depth == 32) {
         uint32_t color_value = 0;   // 4-byte pixel color value in format [N bits of red, N bits of green, N bits of blue, N bits of alpha]
@@ -178,6 +178,47 @@ void Bitmap::writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &
     }
 
     return;
+}
+
+uint32_t Bitmap::getRowPaddingSize() const {
+    uint32_t rowpaddingsize;
+    // If color_depth is 24, rows begin on 4-byte boundaries.
+    // Since 24-bit pixels are 3 bytes, there may be one or more padding bytes at the end of the row.
+    if (color_depth == 24 && ((width_in_pixels * 3) % 4) != 0) {
+        rowpaddingsize = 4 - ((width_in_pixels * 3) % 4);
+    }
+    else {
+        rowpaddingsize = 0;
+    }
+
+    return(rowpaddingsize);
+}
+uint32_t Bitmap::getFileLength() const {
+    return(length);
+}
+void     Bitmap::setFileLength(uint32_t bytes) {
+    length = bytes;
+}
+uint32_t Bitmap::getDataSize() const {
+    return(data_size);
+}
+void     Bitmap::setDataSize(uint32_t bytes) {
+    data_size = bytes;
+}
+uint16_t Bitmap::getColorDepth() const {
+     return(color_depth);
+}
+int32_t  Bitmap::getWidthinPixels() const {
+     return(width_in_pixels);
+}
+void     Bitmap::setWidthinPixels(int width) {
+    width_in_pixels = width;
+}
+int32_t  Bitmap::getHeightinPixels() const {
+     return(height_in_pixels);
+}
+void     Bitmap::setHeightinPixels(int height) {
+    height_in_pixels = height;
 }
 
 
@@ -318,17 +359,10 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
     if (DEBUG) std::cout << std::endl << "Finished parsing header - " << std::dec << file_offset << " bytes read." << std::endl << std::endl;
     if (DEBUG) std::cout << "Bitmap data starts at offset 0x" << std::hex << file_offset << "." << std::endl;
 
-    // If color_depth is 24, our rows begin on 4-byte boundaries.
-    // Since pixels are 3 bytes, there may be one or more padding bytes at the end of the row.
-    if (b.color_depth == 24 && ((b.width_in_pixels * 3) % 4) != 0) {
-        row_padding_size = 4 - ((b.width_in_pixels * 3) % 4);
-    }
-    if (DEBUG) std::cout << "Row padding = " << row_padding_size << std::endl;
-
     // Read in the actual picture data
     if (b.color_depth == 24) {
         int  row_data_length = b.width_in_pixels * 3;
-        int  row_total_length = row_data_length + row_padding_size;
+        int  row_total_length = row_data_length + b.getRowPaddingSize();
         char row_buffer[row_total_length];
 
         b.data.reserve(row_data_length * b.height_in_pixels);  // If we're going to throw a memory exception, do it here
@@ -383,7 +417,6 @@ std::istream& operator>>(std::istream& in, Bitmap& b)
 std::ostream& operator<<(std::ostream& out, const Bitmap& b)
 {
     uint32_t    file_offset = 0;          // Position in the stream we are writing (for Exceptions)
-    uint32_t    row_padding_size = 0;  // The number of bytes of padding we have per line (only if 24-bit color depth)
 
     if (DEBUG) std::cout << std::endl;
 
@@ -395,7 +428,7 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
 
     // Length in Bytes                      (4 bytes)
     out.write((char*)&b.length, 4);
-    if (DEBUG) std::cout << "Length write [" << std::dec << file_offset << "]:  " << std::hex << b.length << std::endl;
+    if (DEBUG) std::cout << "Length write [" << std::dec << file_offset << "]:  " << std::dec << b.length << std::endl;
     file_offset += sizeof(b.length);
 
     // Garbage                              (4 bytes - ignore)
@@ -497,22 +530,27 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
     if (DEBUG) std::cout << std::endl << "Finished writing header - " << std::dec << file_offset << " bytes written." << std::endl;
     if (DEBUG) std::cout << "Bitmap data starts at offset 0x" << std::hex << file_offset << "." << std::endl;
 
-    // If color_depth is 24, our rows begin on 4-byte boundaries.
-    // Since pixels are 3 bytes, there may be one or more padding bytes at the end of the row.
-    if (b.color_depth == 24 && ((b.width_in_pixels * 3) % 4) != 0) {
-        row_padding_size = 4 - ((b.width_in_pixels * 3) % 4);
-    }
-    if (DEBUG) std::cout << "Row padding = " << row_padding_size << std::endl << std::endl;
-
     // Write out the actual picture data
-    if (b.color_depth == 24) {
-        int  row_data_length = b.width_in_pixels * 3;
-        int  row_total_length = row_data_length + row_padding_size;
+    if (b.color_depth == 32) {
+        int data_length;
+        const char* data_pointer;
+
+        data_length  = b.length - file_offset;  // Total length - the header length
+        data_pointer = b.data.data();
+        out.write(data_pointer, data_length);
+        file_offset += data_length;
+    }
+    else {  // Must be 24-bit color depth
+        uint32_t  row_data_length;
+        uint32_t  row_total_length;
         const char *data_pointer;
         const char padding[3] = {NULL,NULL,NULL};
         int data_offset = 0;
 
-        for (int i = 0; i < b.height_in_pixels; i++) {
+        row_data_length  = b.width_in_pixels * 3;
+        row_total_length = row_data_length + b.getRowPaddingSize();
+
+        for (int i = 0; i < b.getHeightinPixels(); i++) {
             // Output each row of picture data
             data_pointer = b.data.data() + data_offset;
             out.write(data_pointer, row_data_length);
@@ -520,17 +558,9 @@ std::ostream& operator<<(std::ostream& out, const Bitmap& b)
             file_offset += row_data_length;
 
             // Add padding to the end of the row
-            out.write(padding, row_padding_size);
-            file_offset += row_padding_size;
+            out.write(padding, b.getRowPaddingSize());
+            file_offset += b.getRowPaddingSize();
         }
-    }
-    else {  // Must be 32-bit color depth
-        int data_length = b.length - file_offset;  // Total length - the header length
-        const char* data_pointer;
-
-        data_pointer = b.data.data();
-        out.write(data_pointer, data_length);
-        file_offset += data_length;
     }
 
     // Double-check that our final pointer value matches the expected bitmap length
@@ -715,7 +745,57 @@ void blur(Bitmap& b) {
 /**
  * rotates image 90 degrees, swapping the height and width.
  */
-void rot90(Bitmap& b) {}
+void rot90(Bitmap& b) {
+    Bitmap outbmp = b;                  // Create a second bitmap to hold our output values
+    BitmapPixel source_pixel;           // Pixel object to hold the source data
+    BitmapPixel target_pixel;           // The pixel we will write back to the target image
+    int source_num_padding_bytes;       // The number of padding bytes in the source bitmap
+    int target_num_padding_bytes;       // The number of padding bytes in the target bitmap
+
+    // Swap the height and width values in our output bitmap
+    outbmp.setWidthinPixels(b.getHeightinPixels());
+    outbmp.setHeightinPixels(b.getWidthinPixels());
+
+    // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
+    source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+    target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+
+    outbmp.setFileLength(b.getFileLength() - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+    outbmp.setDataSize  (b.getDataSize()   - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+
+    // Iterate over all the pixels in the picture
+    for (int y = 0; y < b.getHeightinPixels(); y++) {
+        for (int x = 0; x < b.getWidthinPixels(); x++) {
+            uint red   = 0;
+            uint green = 0;
+            uint blue  = 0;
+            uint alpha = 0;
+
+            // Initialize our source pixel
+            source_pixel.init(b, x, y);
+            if (b.color_depth == 32) {
+                source_pixel.getrgba(red, green, blue, alpha); // Get the  values
+            }
+            else {  // 24-bit
+                source_pixel.getrgb(red, green, blue); // Get it's original values
+            }
+
+            // Write our copied pixel to the target image
+            target_pixel.init(outbmp, y, x);   // *** Swap X and Y ***
+            if (b.color_depth == 32) {
+                target_pixel.setrgb(red, green, blue);
+            }
+            else {
+                target_pixel.setrgba(red, green, blue, alpha);
+            }
+            target_pixel.write();
+        }
+    }
+
+    b = outbmp;  // Return outbmp instead of b
+
+    return;
+}
 
 /**
  * rotates an image by 180 degrees.

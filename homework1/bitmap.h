@@ -30,7 +30,6 @@ private:
      */
     friend std::ostream& operator<<(std::ostream& in, const Bitmap& b);
 
-
 public:
     char         bitmap_type[2];         // Bitmap Type                          (2 bytes - always "BM"/0x424D)
     uint32_t     length;                 // Length in Bytes                      (4 bytes)
@@ -57,8 +56,18 @@ public:
 
     Bitmap();
 
-    void readPixel (int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
-    void writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
+    void     readPixel (int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
+    void     writePixel(int x, int y, uint &red, uint &green, uint &blue, uint &alpha);
+    uint32_t getRowPaddingSize() const;
+    uint32_t getFileLength() const;
+    void     setFileLength(uint32_t length);
+    uint32_t getDataSize() const;
+    void     setDataSize(uint32_t length);
+    uint16_t getColorDepth() const;
+    int32_t  getWidthinPixels() const;
+    void     setWidthinPixels(int width);
+    int32_t  getHeightinPixels() const;
+    void     setHeightinPixels(int height);
 
 };
 
