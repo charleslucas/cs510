@@ -185,8 +185,8 @@ public:
     uint     alpha;
 
     BitmapPixel();
-    BitmapPixel(Bitmap& b, int x, int y);
-    void init  (Bitmap& b, int x, int y);
+    BitmapPixel(Bitmap& b, uint x, uint y);
+    void init  (Bitmap& b, uint x, uint y);
     void write ();
     void getrgb (uint &redvalue, uint &greenvalue, uint &bluevalue);
     void getrgba(uint &redvalue, uint &greenvalue, uint &bluevalue, uint &alphavalue);

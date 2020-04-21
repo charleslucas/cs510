@@ -770,18 +770,25 @@ void rot90(Bitmap& b) {
             uint green = 0;
             uint blue  = 0;
             uint alpha = 0;
+            uint target_x;
+            uint target_y;
 
             // Initialize our source pixel
             source_pixel.init(b, x, y);
             if (b.color_depth == 32) {
-                source_pixel.getrgba(red, green, blue, alpha); // Get the  values
+                source_pixel.getrgba(red, green, blue, alpha);
             }
             else {  // 24-bit
-                source_pixel.getrgb(red, green, blue); // Get it's original values
+                source_pixel.getrgb(red, green, blue);
             }
 
+            // *** Swap X and Y, but subtract Y from height so we don't reverse the image ***
+            target_x = y;
+            target_y = (outbmp.getHeightinPixels()-1) - x;
+            //std::cout << "Target pixel:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " rx/ry:  " << (outbmp.getHeightinPixels() - y) << "/" << (outbmp.getWidthinPixels() - x) << std::endl;
+
             // Write our copied pixel to the target image
-            target_pixel.init(outbmp, y, x);   // *** Swap X and Y ***
+            target_pixel.init(outbmp, target_x, target_y);
             if (b.color_depth == 32) {
                 target_pixel.setrgb(red, green, blue);
             }
@@ -857,13 +864,13 @@ void BitmapException::print_exception() {
  * BitmapPixel - to handle functions associated with Bitmap pixel transforms
  */
 BitmapPixel::BitmapPixel() {}
-BitmapPixel::BitmapPixel(Bitmap& bptr, int xin, int yin) {
+BitmapPixel::BitmapPixel(Bitmap& bptr, uint xin, uint yin) {
     b = &bptr;
     x = xin;
     y = yin;
     b->readPixel(x, y, red, green, blue, alpha);
 }
-void BitmapPixel::init(Bitmap& bptr, int xin, int yin) {
+void BitmapPixel::init(Bitmap& bptr, uint xin, uint yin) {
     b = &bptr;
     x = xin;
     y = yin;
