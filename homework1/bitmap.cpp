@@ -10,7 +10,7 @@
 #include <iomanip>
 #include "bitmap.h"
 
-#define DEBUG 1          // Turn on/off all debug messages
+#define DEBUG 0          // Turn on/off all debug messages
 #define PIXEL_SIZE 16    // NxN array of pixels to average color over for pixellation
 #define GAUSS_SIZE 5     // NxN array of pixels to calulate gausian blue over for each pixel
 
@@ -683,7 +683,7 @@ void pixelate(Bitmap& b) {
 void blur(Bitmap& b) {
     Bitmap outbmp = b;    // Create a second bitmap to hold our output values
 
-    BitmapPixel target_pixel;           // The target pixel we will modify the values for
+    BitmapPixel target1_pixel;           // The target pixel we will modify the values for
     BitmapPixel temp_pixel;             // Temporary pixel object to hold data while calculating
     int         matrix[GAUSS_SIZE][GAUSS_SIZE] = {{1,  4,  6,  4, 1},
                                                   {4, 16, 24, 16, 4},
@@ -709,8 +709,8 @@ void blur(Bitmap& b) {
             uint gauss_blue  = 0;
 
             // Initialize our target pixel (in the center of the matrix)
-            target_pixel.init(outbmp, x + gauss_offset, y + gauss_offset);    // Init from the center pixel coordinates (output bitmap)
-            target_pixel.getrgb(original_red, original_green, original_blue); // Get it's original values
+            target1_pixel.init(outbmp, x + gauss_offset, y + gauss_offset);    // Init from the center pixel coordinates (output bitmap)
+            target1_pixel.getrgb(original_red, original_green, original_blue); // Get it's original values
 
             // Iterate over all the matrix values, multiply them by the R/G/B value of that pixel, and add them all together.
             for (int py = 0; py < GAUSS_SIZE; py++) {
@@ -732,96 +732,9 @@ void blur(Bitmap& b) {
             gauss_green /= 256;
             gauss_blue  /= 256;
 
-            target_pixel.setrgb(gauss_red, gauss_green, gauss_blue);
-            target_pixel.write();  // Write our calculated files to the output bitmap
+            target1_pixel.setrgb(gauss_red, gauss_green, gauss_blue);
+            target1_pixel.write();  // Write our calculated files to the output bitmap
         }
-    }
-
-    b = outbmp;  // Return outbmp instead of b
-
-    return;
-}
-
-/**
- * rotates image 90 degrees, swapping the height and width.
- */
-void imageTransform(Bitmap& b, uint mode) {
-    Bitmap outbmp = b;                   // Create a second bitmap to hold our output values
-    BitmapPixel source_pixel;            // Pixel object to hold the source data
-    BitmapPixel target_pixel;            // The pixel we will write back to the target image
-    uint source_num_padding_bytes;       // The number of padding bytes in the source bitmap
-    uint target_num_padding_bytes;       // The number of padding bytes in the target bitmap
-
-    // Edit our output file header settings dependent on mode
-    if (mode == 0) {   // ROT90
-        // Swap the height and width values in our output bitmap
-        outbmp.setWidthinPixels(b.getHeightinPixels());
-        outbmp.setHeightinPixels(b.getWidthinPixels());
-    }
-    if (mode == 1) {}  // ROT180
-    if (mode == 2) {   // ROT270
-        // Swap the height and width values in our output bitmap
-        outbmp.setWidthinPixels(b.getHeightinPixels());
-        outbmp.setHeightinPixels(b.getWidthinPixels());
-    }
-
-    // Iterate over all the pixels in the picture
-    for (int y = 0; y < b.getHeightinPixels(); y++) {
-        for (int x = 0; x < b.getWidthinPixels(); x++) {
-            uint red   = 0;
-            uint green = 0;
-            uint blue  = 0;
-            uint alpha = 0;
-            uint target_x;
-            uint target_y;
-
-            // Initialize our source pixel
-            source_pixel.init(b, x, y);
-            if (b.color_depth == 32) {
-                source_pixel.getrgba(red, green, blue, alpha);
-            }
-            else {  // 24-bit
-                source_pixel.getrgb(red, green, blue);
-            }
-
-            // Transform our picture depending on mode
-            if (mode == 0) {       // ROT90
-                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
-                target_x = y;
-                target_y = (outbmp.getHeightinPixels()-1) - x;
-            }
-            else if (mode == 1) {  // ROT180
-                // *** Reverse X and Y ***
-                target_x = (outbmp.getWidthinPixels()-1) - x;
-                target_y = (outbmp.getHeightinPixels()-1) - y;
-            }
-            else if (mode == 2) {  // ROT270
-                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
-                target_x = (outbmp.getWidthinPixels()-1) - y;
-                target_y = x;
-            }
-
-            //std::cout << "Target pixel:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " rx/ry:  " << (outbmp.getHeightinPixels() - y) << "/" << (outbmp.getWidthinPixels() - x) << std::endl;
-
-            // Write our copied pixel to the target image
-            target_pixel.init(outbmp, target_x, target_y);
-            if (b.color_depth == 32) {
-                target_pixel.setrgb(red, green, blue);
-            }
-            else {
-                target_pixel.setrgba(red, green, blue, alpha);
-            }
-            target_pixel.write();
-        }
-    }
-
-    if (b.getWidthinPixels() != outbmp.getWidthinPixels() || b.getHeightinPixels() != outbmp.getHeightinPixels()) {
-        // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
-        source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
-        target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
-
-        outbmp.setFileLength(b.getFileLength() - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
-        outbmp.setDataSize  (b.getDataSize()   - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
     }
 
     b = outbmp;  // Return outbmp instead of b
@@ -853,32 +766,351 @@ void rot270(Bitmap& b) {
 /**
  * flips and image over the vertical axis.
  */
-void flipv(Bitmap& b) {}
+void flipv(Bitmap& b) {
+    imageTransform(b, 3);  // Image transform mode 3 (FLIPV)
+}
 
 /**
  * flips and image over the horizontal axis.
  */
-void fliph(Bitmap& b) {}
+void fliph(Bitmap& b) {
+    imageTransform(b, 4);  // Image transform mode 4 (FLIPH)
+}
 
 /**
  * flips and image over the line y = -x, swapping the height and width.
  */
-void flipd1(Bitmap& b) {}
+void flipd1(Bitmap& b) {
+    imageTransform(b, 5);  // Image transform mode 5 (FLIPD1)
+}
 
 /**
  * flips and image over the line y = xr, swapping the height and width.
  */
-void flipd2(Bitmap& b) {}
+void flipd2(Bitmap& b) {
+    imageTransform(b, 6);  // Image transform mode 6 (FLIPD2)
+}
 
 /**
  * scales the image by a factor of 2.
  */
-void scaleUp(Bitmap& b) {}
+void scaleUp(Bitmap& b) {
+    Bitmap outbmp = b;                   // Create a second bitmap to hold our output values
+    BitmapPixel source_pixel;            // Pixel object to hold the source data
+    BitmapPixel target1_pixel;           // A pixel to write back to the target image
+    BitmapPixel target2_pixel;           // A pixel to write back to the target image
+    BitmapPixel target3_pixel;           // A pixel to write back to the target image
+    BitmapPixel target4_pixel;           // A pixel to write back to the target image
+    int  number_of_colors;               // Number of color fields per pixel (24-bit vs 32-bit encoding)
+    uint difference_in_pixels;           // The difference in the number of pixels between source and target
+    uint difference_in_bytes;            // The difference in the number of bytes between source and target
+    uint source_num_padding_bytes;       // The number of padding bytes in the source bitmap
+    uint target_num_padding_bytes;       // The number of padding bytes in the target bitmap
+
+    if (b.color_depth == 32) number_of_colors = 4;
+    else                     number_of_colors = 3;
+
+    std::cout << "Applying scale up transform." << std::endl;
+
+    // Double the width *and* height of our output bitmap
+    difference_in_pixels = ((b.getWidthinPixels()*2 * b.getHeightinPixels()*2)) - (b.getWidthinPixels() * b.getHeightinPixels());
+    difference_in_bytes  = difference_in_pixels * number_of_colors;
+    outbmp.setWidthinPixels(b.getWidthinPixels()*2);
+    outbmp.setHeightinPixels(b.getHeightinPixels()*2);
+    outbmp.data.resize(b.data.size()*4);  // Quadruple the size of our output bitmap's vector
+
+    // Iterate over all the pixels in the picture
+    for (int y = 0; y < b.getHeightinPixels(); y++) {
+        for (int x = 0; x < b.getWidthinPixels(); x++) {
+            uint red   = 0;
+            uint green = 0;
+            uint blue  = 0;
+            uint alpha = 0;
+            uint target1_x, target1_y;
+            uint target2_x, target2_y;
+            uint target3_x, target3_y;
+            uint target4_x, target4_y;
+
+            // Initialize our source pixel
+            source_pixel.init(b, x, y);
+            if (b.color_depth == 32) {
+                source_pixel.getrgba(red, green, blue, alpha);
+            }
+            else {  // 24-bit
+                source_pixel.getrgb(red, green, blue);
+            }
+
+            // *** Duplicate each row (doubling the number of rows) ***
+            target1_x =  2 * x;
+            target1_y =  2 * y;
+            target2_x =  2 * x;
+            target2_y = (2 * y) + 1;
+
+            // *** Duplicate each column (doubling the number of column) ***
+            target3_x = (2 * x) + 1;
+            target3_y =  2 * y;
+            target4_x = (2 * x) + 1;
+            target4_y = (2 * y) + 1;
+
+            // Set the colors for our 4x4 block of copied pixel(s) and write them to the target image
+            if (DEBUG) std::cout << "Target pixel1:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target1_y << "/" << target1_x << std::endl;
+            if (DEBUG) std::cout << "Target pixel2:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target2_y << "/" << target2_x << std::endl;
+            if (DEBUG) std::cout << "Target pixel3:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target3_y << "/" << target3_x << std::endl;
+            if (DEBUG) std::cout << "Target pixel4:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target4_y << "/" << target4_x << std::endl << std::endl;
+            target1_pixel.init(outbmp, target1_x, target1_y);
+            target2_pixel.init(outbmp, target2_x, target2_y);
+            target3_pixel.init(outbmp, target3_x, target3_y);
+            target4_pixel.init(outbmp, target4_x, target4_y);
+
+            if (b.color_depth == 32) {
+                target1_pixel.setrgb(red, green, blue);
+                target2_pixel.setrgb(red, green, blue);
+                target3_pixel.setrgb(red, green, blue);
+                target4_pixel.setrgb(red, green, blue);
+            }
+            else {
+                target1_pixel.setrgba(red, green, blue, alpha);
+                target2_pixel.setrgba(red, green, blue, alpha);
+                target3_pixel.setrgba(red, green, blue, alpha);
+                target4_pixel.setrgba(red, green, blue, alpha);
+            }
+
+            target1_pixel.write();
+            target2_pixel.write();
+            target3_pixel.write();
+            target4_pixel.write();
+        }
+
+        if (b.getWidthinPixels() != outbmp.getWidthinPixels() || b.getHeightinPixels() != outbmp.getHeightinPixels()) {
+            // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
+            source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+            target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+    
+            outbmp.setFileLength(b.getFileLength() + difference_in_bytes - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels * 2));
+            outbmp.setDataSize  (b.getDataSize()   + difference_in_bytes - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels * 2));
+        }
+    }
+
+    b = outbmp;  // Return outbmp instead of b
+
+    return;
+}
 
 /**
  * scales the image by a factor of 1/2.
  */
-void scaleDown(Bitmap& b) {}
+void scaleDown(Bitmap& b) {
+    Bitmap outbmp = b;                   // Create a second bitmap to hold our output values
+    BitmapPixel source_pixel;            // Pixel object to hold the source data
+    BitmapPixel target1_pixel;           // A pixel to write back to the target image
+    int  number_of_colors;               // Number of color fields per pixel (24-bit vs 32-bit encoding)
+    uint difference_in_pixels;           // The difference in the number of pixels between source and target
+    uint difference_in_bytes;            // The difference in the number of bytes between source and target
+    uint source_num_padding_bytes;       // The number of padding bytes in the source bitmap
+    uint target_num_padding_bytes;       // The number of padding bytes in the target bitmap
+
+    if (b.color_depth == 32) number_of_colors = 4;
+    else                     number_of_colors = 3;
+
+    std::cout << "Applying scale down transform." << std::endl;
+
+    // Double the width *and* height of our output bitmap
+    difference_in_pixels = ((b.getWidthinPixels() * b.getHeightinPixels()) - (b.getWidthinPixels()/2 * b.getHeightinPixels()/2));
+    difference_in_bytes  = difference_in_pixels * number_of_colors;
+    outbmp.setWidthinPixels(b.getWidthinPixels()/2);
+    outbmp.setHeightinPixels(b.getHeightinPixels()/2);
+    outbmp.data.resize(b.data.size()/4);  // Divide the size of our output bitmap's vector by four (optional, just to save memory)
+
+    // Iterate over all the pixels in the picture
+    for (int y = 0; y < b.getHeightinPixels(); y++) {
+        for (int x = 0; x < b.getWidthinPixels(); x++) {
+            uint red   = 0;
+            uint green = 0;
+            uint blue  = 0;
+            uint alpha = 0;
+            uint target1_x, target1_y;
+
+            // Initialize our source pixel
+            source_pixel.init(b, x, y);
+            if (b.color_depth == 32) {
+                source_pixel.getrgba(red, green, blue, alpha);
+            }
+            else {  // 24-bit
+                source_pixel.getrgb(red, green, blue);
+            }
+
+            // *** Ignore every other row (halving the number of rows) ***
+            if (y%2 == 1) {
+                target1_x =  x/2;
+                target1_y =  y/2;
+
+                // Set the colors for our 4x4 block of copied pixel(s) and write them to the target image
+                if (DEBUG) std::cout << "Target pixel1:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target1_y << "/" << target1_x << std::endl;
+                target1_pixel.init(outbmp, target1_x, target1_y);
+
+                if (b.color_depth == 32) {
+                    target1_pixel.setrgb(red, green, blue);
+                }
+                else {
+                    target1_pixel.setrgba(red, green, blue, alpha);
+                }
+
+                target1_pixel.write();
+            }
+        }
+
+        if (b.getWidthinPixels() != outbmp.getWidthinPixels() || b.getHeightinPixels() != outbmp.getHeightinPixels()) {
+            // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
+            source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+            target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+    
+            outbmp.setFileLength(b.getFileLength() - difference_in_bytes - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels * 2));
+            outbmp.setDataSize  (b.getDataSize()   - difference_in_bytes - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels * 2));
+        }
+    }
+
+    b = outbmp;  // Return outbmp instead of b
+
+    return;
+}
+
+/**
+ * Transform the image, depending on mode:
+ * 0 = ROT90
+ * 1 = ROT180
+ * 2 = ROT270
+ * 3 = FLIPV
+ * 4 = FLIPH
+ * 5 = FLIPD1
+ * 6 = FLIPD2
+ */
+void imageTransform(Bitmap& b, uint mode) {
+    Bitmap outbmp = b;                   // Create a second bitmap to hold our output values
+    BitmapPixel source_pixel;            // Pixel object to hold the source data
+    BitmapPixel target1_pixel;           // A pixel to write back to the target image
+    uint source_num_padding_bytes;       // The number of padding bytes in the source bitmap
+    uint target_num_padding_bytes;       // The number of padding bytes in the target bitmap
+
+    // Edit our output file header settings dependent on mode
+    if      (mode == 0) {   // ROT90
+        std::cout << "Applying rotate 90 transform." << std::endl;
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
+    else if (mode == 1) {   // ROT180
+        std::cout << "Applying rotate 180 transform." << std::endl;
+    }
+    else if (mode == 2) {   // ROT270
+        std::cout << "Applying rotate 270 transform." << std::endl;
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
+    else if (mode == 3) {   // FLIPV
+        std::cout << "Applying flip vertical transform." << std::endl;
+    }
+    else if (mode == 4) {   // FLIPH
+        std::cout << "Applying flip horizontal transform." << std::endl;
+    }
+    else if (mode == 5) {   // FLIPD1
+        std::cout << "Applying flip diagonal 1 transform." << std::endl;
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
+    else if (mode == 6) {   // FLIPD2
+        std::cout << "Applying flip diagonal 2 transform." << std::endl;
+        // Swap the height and width values in our output bitmap
+        outbmp.setWidthinPixels(b.getHeightinPixels());
+        outbmp.setHeightinPixels(b.getWidthinPixels());
+    }
+    else {
+        std::cout << "Error - Invalid tranform mode selected." << std::endl;
+        return;
+    }
+
+    // Iterate over all the pixels in the picture
+    for (int y = 0; y < b.getHeightinPixels(); y++) {
+        for (int x = 0; x < b.getWidthinPixels(); x++) {
+            uint red   = 0;
+            uint green = 0;
+            uint blue  = 0;
+            uint alpha = 0;
+            uint target1_x, target1_y;
+
+            // Initialize our source pixel
+            source_pixel.init(b, x, y);
+            if (b.color_depth == 32) {
+                source_pixel.getrgba(red, green, blue, alpha);
+            }
+            else {  // 24-bit
+                source_pixel.getrgb(red, green, blue);
+            }
+
+            // Transform our picture depending on mode
+            if (mode == 0) {       // ROT90
+                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
+                target1_x = y;
+                target1_y = (outbmp.getHeightinPixels()-1) - x;
+            }
+            else if (mode == 1) {  // ROT180
+                // *** Reverse X and Y ***
+                target1_x = (outbmp.getWidthinPixels()-1)  - x;
+                target1_y = (outbmp.getHeightinPixels()-1) - y;
+            }
+            else if (mode == 2) {  // ROT270
+                // *** Swap X and Y, but reverse Y so we don't reverse the image ***
+                target1_x = (outbmp.getWidthinPixels()-1) - y;
+                target1_y = x;
+            }
+            else if (mode == 3) {  // FLIPV
+                // *** Reverse X ***
+                target1_x = (outbmp.getWidthinPixels()-1) - x;
+                target1_y = y;
+            }
+            else if (mode == 4) {  // FLIPH
+                // *** Reverse Y ***
+                target1_x = x;
+                target1_y = (outbmp.getHeightinPixels()-1) - y;
+            }
+            else if (mode == 5) {  // FLIPD1
+                // *** Flip X and Y ***
+                target1_x = y;
+                target1_y = x;
+            }
+            else if (mode == 6) {  // FLIPD2
+                // *** Flip *and* Reverse X and Y ***
+                target1_x = (outbmp.getWidthinPixels()-1) - y;
+                target1_y = (outbmp.getHeightinPixels()-1)  - x;
+            }
+
+            // Write our copied pixel to the target image
+            if (DEBUG) std::cout << "Target pixel1:  x/y:  " << std::dec << y << "/" << x << " mx/my:  " << outbmp.getHeightinPixels() << "/" << outbmp.getWidthinPixels() << " tx/ty:  " << target1_y << "/" << target1_x << std::endl;
+            target1_pixel.init(outbmp, target1_x, target1_y);
+            if (b.color_depth == 32) {
+                target1_pixel.setrgb(red, green, blue);
+            }
+            else {
+                target1_pixel.setrgba(red, green, blue, alpha);
+            }
+            target1_pixel.write();
+        }
+    }
+
+    if (b.getWidthinPixels() != outbmp.getWidthinPixels() || b.getHeightinPixels() != outbmp.getHeightinPixels()) {
+        // Adjust the file length and data size based on the changed number of padding bytes, if necessary.
+        source_num_padding_bytes =      b.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+        target_num_padding_bytes = outbmp.getRowPaddingSize();  // If 32-bit, getRowPaddingSize will be 0
+
+        outbmp.setFileLength(b.getFileLength() - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+        outbmp.setDataSize  (b.getDataSize()   - (source_num_padding_bytes * b.height_in_pixels) + (target_num_padding_bytes * outbmp.height_in_pixels));
+    }
+
+    b = outbmp;  // Return outbmp instead of b
+
+    return;
+}
 
 /**
  * BitmapException denotes an exception from reading in a bitmap.

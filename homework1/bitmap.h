@@ -146,10 +146,14 @@ void scaleDown(Bitmap& b);
  * 0 = ROT90
  * 1 = ROT180
  * 2 = ROT270
+ * 3 = FLIPV
+ * 4 = FLIPH
+ * 5 = FLIPD1
+ * 6 = FLIPD2
+ * 7 = SCALEUP
+ * 8 = SCALEDOWN
  */
 void imageTransform(Bitmap& b, uint mode);
-
-
 
 /**
  * BitmapException denotes an exception from reading in a bitmap.
