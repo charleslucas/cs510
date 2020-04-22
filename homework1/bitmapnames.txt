@@ -1,0 +1,10 @@
+bear1_24
+bear2_24
+bear3_24
+pikachu24
+sonic24
+bear1_32
+bear2_32
+bear3_32
+pikachu32
+sonic32
