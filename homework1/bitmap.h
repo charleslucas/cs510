@@ -24,7 +24,7 @@ private:
      * @param out the stream to write to.
      * @param b the bitmap that we are writing.
      *
-     * @return the stream after we've finished writting.
+     * @return the stream after we've finished writing.
      *
      * @throws failure if we failed to write.
      */
