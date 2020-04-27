@@ -58,6 +58,17 @@ void SolveException::print_exception() {
     std::cout << "Solver Exception:  " << _message << " - tree level " << _tree_level << std::endl;
 }
 
+struct nodeinfo {
+    point parent;
+    point next;
+    int exits[4];     // The exits from our current point (0=up, 1=left, 2=down, 3=right) - 0 = no exit, 1 = exit, -1 = backtracked from there
+};
+
+struct exitinfo {
+    point  exits[4];        // The exits from our current point (0=up, 1=left, 2=down, 3=right)
+    int    ccost;           // The *cumulative* cost for this node
+    int    exit_ccosts[4];  // The *cumulative* costs for each exit (costs to the node in that direction plus all costs to this point)
+};
 
 int main(int argc, char** argv)
 {
@@ -235,12 +246,6 @@ path solve_left(Maze& m, int rows, int cols)
 
     return pointlist;
 }
-
-struct nodeinfo {
-    point parent;
-    point next;
-    int exits[4];  // The exits from our current point (0=up, 1=left, 2=down, 3=right) - 0 = no exit, 1 = exit, -1 = backtracked from there
-};
 
 /*
  *  Implement a depth-first (backtracking) algorithm
@@ -461,10 +466,6 @@ path solve_dfs(Maze& m, int rows, int cols)
     return pointlist;
 }
 
-struct exitinfo {
-    point exits[4];  // The exits from our current point (0=up, 1=left, 2=down, 3=right)
-};
-
 /*
  *  Implement a breadth-first algorithm
  *  Construct a list of just the points that make up the shortest distance to the end - duplicates are not allowed.
@@ -485,7 +486,7 @@ path solve_bfs(Maze& m, int rows, int cols)
     point current_point = make_pair(0,0); // first=row, second=col, always start at 0,0
     exitinfo  current_exitinfo;
 
-    point current_parent;                 // For use while constructing our final list
+    point current_parent;                 // For tracking the parent chain while constructing our final list
 
     current_row.push_back(current_point); // Insert our first point into the first tree row
     parent_map.insert(pair<point,point>(current_point, make_pair(-1,-1)));  // Use -1,-1 to denote that our root node has no parent
@@ -606,9 +607,318 @@ path solve_bfs(Maze& m, int rows, int cols)
     return pointlist;
 }
 
+/*
+ *  Implement a breadth-first algorithm weighted by cost
+ *  Construct a list of just the points that make up the lowest-cost distance to the end - duplicates are not allowed.
+*/
 path solve_dijkstra(Maze& m, int rows, int cols)
 {
-    return list<point>();
+    list<point> pointlist;  // The resulting point list we will return to the checker
+
+    map <point,exitinfo> exit_map;        // Create a map-based tree structure of each room and it's exits
+    map <point,point>    parent_map;      // Create a map-based tree structure of each room and it's parent
+
+    list <point> current_frontier;        // the nodes in the current frontier of our tree
+    list <point> next_frontier;           // the nodes in the next row of our tree
+
+    int  frontier_level = 0;              // How many frontier levels we have iterated through
+    bool found_path = false;              // Set this when we reach the end square
+
+    point current_point = make_pair(0,0); // first=row, second=col, always start at 0,0
+    exitinfo  current_exitinfo;
+
+    point current_parent;                 // For tracking the parent chain while constructing our final list
+
+    current_frontier.push_back(current_point); // Insert our first point into the first frontier
+    parent_map.insert(pair<point,point>(current_point, make_pair(-1,-1)));  // Use -1,-1 to denote that our root node has no parent
+
+    // Discover the lowest-cost exits for each point in each possible path until we find the end of the maze
+    while(found_path == false && current_frontier.size() != 0) {
+        int    lowest_ccost = 0;  // The lowest cumulative movement cost we've found so far
+        int it_lowest_ccost = 0;  // Lowest cumulative movement cost we've found for each iteration
+
+        #ifdef DEBUG
+        std::cout << "Discovering maze frontier level " << frontier_level << std::endl;
+        #endif
+
+        // Iterate over the current frontier row, fill out all the data for new nodes and figure out the lowest ccost for this frontier
+        for (std::list<point>::iterator it = current_frontier.begin(); it != current_frontier.end(); it++) {
+            exitinfo current_exitinfo;
+            exitinfo parent_exitinfo;
+
+            point it_point = *it;
+            current_point = make_pair(it_point.first, it_point.second);
+            
+            it_lowest_ccost = 9 * m.rows() * m.columns();  // Lowest cumulative movement cost we've found for this iteration (set to the max possible cost)
+            
+            #ifdef DEBUG
+            std::cout << "  current_point = " << current_point.first << "/" << current_point.second << std::endl;
+            #endif
+
+            // Get the known info for the current point's parent (unless we're the root node)
+            if (current_point.first == 0 && current_point.second == 0) {
+                current_parent = make_pair(-1,-1);
+            }
+            else {
+                current_parent = parent_map.at(current_point);
+                parent_exitinfo = exit_map.at(current_parent);
+            }
+
+            #ifdef DEBUG
+            std::cout << "  parent point " << current_parent.first << "/" << current_parent.second << std::endl;
+            #endif
+
+            //  If this point already exists in our map
+            if (exit_map.count(current_point) > 0) {
+                std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " already exists" << std::endl;
+                current_exitinfo = exit_map.at(current_point);          // Get our known exit info for the current point
+
+                // Iterate over our known valid exits for this node to find the lowest cumulative cost
+                for (int i = 0; i < 4; i++) {
+                    if (current_exitinfo.exits[i].first > -1 && current_exitinfo.exits[i].second > -1 && 
+                        it_lowest_ccost > current_exitinfo.exit_ccosts[i]) {
+                            it_lowest_ccost = current_exitinfo.exit_ccosts[i];
+                        }
+                }
+            }
+            else {  // Create a new node
+
+                std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " doesn't exist - creating" << std::endl;
+
+                // Determine our current node's base cumulative cost (unless we're at root, then set it to 0)
+                if (current_point.first == 0 && current_point.second == 0) {
+                    current_exitinfo.ccost = 0;
+                }
+                else {
+                    // If our parent is UP from us, our cumulative cost is the parent's cost plus the DOWN cost from there.
+                    if ((current_parent.first == current_point.first-1) && (current_parent.second == current_point.second)) {
+                        current_exitinfo.ccost = parent_exitinfo.ccost + m.cost(current_parent.first, current_parent.second, DOWN);
+                    }
+                    // If our parent is LEFT from us, our cumulative cost is the parent's cost plus the RIGHT cost from there.
+                    else if ((current_parent.first == current_point.first) && (current_parent.second == current_point.second-1)) {
+                        current_exitinfo.ccost = parent_exitinfo.ccost + m.cost(current_parent.first, current_parent.second, RIGHT);
+                    }
+                    // If our parent is DOWN from us, our cumulative cost is the parent's cost plus the UP cost from there.
+                    else if ((current_parent.first == current_point.first+1) && (current_parent.second == current_point.second)) {
+                        current_exitinfo.ccost = parent_exitinfo.ccost + m.cost(current_parent.first, current_parent.second, UP);
+                    }
+                    // If our parent is RIGHT from us, our cumulative cost is the parent's cost plus the LEFT cost from there.
+                    else if ((current_parent.first == current_point.first+1) && (current_parent.second == current_point.second)) {
+                        current_exitinfo.ccost = parent_exitinfo.ccost + m.cost(current_parent.first, current_parent.second, LEFT);
+                    }
+                }
+
+                bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
+                bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
+                bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
+                bool can_go_right = m.can_go_right(current_point.first, current_point.second);
+
+                point    up_point = make_pair(current_point.first-1, current_point.second);
+                point  left_point = make_pair(current_point.first, current_point.second-1);
+                point  down_point = make_pair(current_point.first+1, current_point.second);
+                point right_point = make_pair(current_point.first, current_point.second+1);
+
+                #ifdef DEBUG
+                std::cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
+                #endif
+
+                // Determine cost for all the exits from our current point that aren't our parent
+                if (can_go_up && up_point != current_parent) {
+                    int ccost = m.cost(current_point.first, current_point.second, UP) + current_exitinfo.ccost;
+                    if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
+                    current_exitinfo.exits[UP] = up_point;
+                    current_exitinfo.exit_ccosts[UP] = ccost;
+                    #ifdef DEBUG
+                    std::cout << "  UP    cost = " << ccost << std::endl;
+                    #endif
+                }
+                else
+                {   // Mark that exit invalid
+                    current_exitinfo.exits[UP] = make_pair(-1, -1);
+                    current_exitinfo.exit_ccosts[UP] = -1;
+                }
+                if (can_go_left && left_point != current_parent) {
+                    int ccost = m.cost(current_point.first, current_point.second, LEFT) + current_exitinfo.ccost;
+                    if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
+                    current_exitinfo.exits[LEFT] = left_point;
+                    current_exitinfo.exit_ccosts[LEFT] = ccost;
+                    #ifdef DEBUG
+                    std::cout << "  LEFT  cost = " << ccost << std::endl;
+                    #endif
+                }
+                else
+                {   // Mark that exit invalid
+                    current_exitinfo.exits[LEFT] = make_pair(-1, -1);
+                    current_exitinfo.exit_ccosts[LEFT] = -1;
+                }
+                if (can_go_down && down_point != current_parent) {
+                    int ccost = m.cost(current_point.first, current_point.second, DOWN) + current_exitinfo.ccost;
+                    if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
+                    current_exitinfo.exits[DOWN] = down_point;
+                    current_exitinfo.exit_ccosts[DOWN] = ccost;
+                    #ifdef DEBUG
+                    std::cout << "  DOWN  cost = " << ccost << std::endl;
+                    #endif
+                }
+                else
+                {   // Mark that exit invalid
+                    current_exitinfo.exits[DOWN] = make_pair(-1, -1);
+                    current_exitinfo.exit_ccosts[DOWN] = -1;
+                }
+                if (can_go_right && right_point != current_parent) {
+                    int ccost = m.cost(current_point.first, current_point.second, RIGHT) + current_exitinfo.ccost;
+                    if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
+                    current_exitinfo.exits[RIGHT] = right_point;
+                    current_exitinfo.exit_ccosts[RIGHT] = ccost;
+                    #ifdef DEBUG
+                    std::cout << "  RIGHT cost = " << ccost << std::endl;
+                    #endif
+                }
+                else
+                {   // Mark that exit invalid
+                    current_exitinfo.exits[RIGHT] = make_pair(-1, -1);
+                    current_exitinfo.exit_ccosts[RIGHT] = -1;
+                }
+
+                exit_map.insert(pair<point,exitinfo>(current_point, current_exitinfo));  // Insert our new node into the tree map
+                parent_map.insert(pair<point,point> (current_point, current_parent));    // and register it's parent
+
+            }
+        }
+
+        std::cout << std::endl << "  Lowest cumulative cost:  " << it_lowest_ccost << std::endl << std::endl;
+
+        // Iterate over the current frontier row again, construct our next frontier based on the lowest cost exits from this one
+        // All these nodes should exist in the exit map now
+        for (std::list<point>::iterator it = current_frontier.begin(); it != current_frontier.end(); it++) {
+            point it_point = *it;
+            current_point = make_pair(it_point.first, it_point.second);
+            current_exitinfo = exit_map.at(current_point);          // Get our known exit info for the current point
+            
+            #ifdef DEBUG
+            std::cout << "  current_point = " << current_point.first << "/" << current_point.second << std::endl;
+            #endif
+
+            bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
+            bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
+            bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
+            bool can_go_right = m.can_go_right(current_point.first, current_point.second);
+
+            #ifdef DEBUG
+            cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
+            #endif
+         
+            // If one or more exits are equal to our lowest cumulative cost, add them to the next frontier
+            if((current_exitinfo.exits[UP].first > -1) && (current_exitinfo.exits[UP].second > -1)) {
+                int up_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, UP);
+                if (up_cost == it_lowest_ccost) {
+                    point up_point = make_pair(current_point.first-1, current_point.second);
+                    std::cout << "  UP    - Pushing " << up_point.first << "/" << up_point.second << " (" << up_cost << ") into next frontier" << std::endl;
+                    next_frontier.push_back(up_point);                        // Put the node at that exit in our next frontier
+                    parent_map.insert(make_pair(up_point, current_point));    // and register this node as it's parent
+                    current_exitinfo.exits[UP] = make_pair(-1,-1);            // Mark this exit invalid now
+                }
+            }
+            if((current_exitinfo.exits[LEFT].first > -1) && (current_exitinfo.exits[LEFT].second > -1)) {
+                int left_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, LEFT);
+                if (left_cost == it_lowest_ccost) {
+                    point left_point = make_pair(current_point.first, current_point.second-1);
+                    std::cout << "  LEFT  - Pushing " << left_point.first << "/" << left_point.second << " (" << left_cost << ") into next frontier" << std::endl;
+                    next_frontier.push_back(left_point);                      // Put the node at that exit in our next frontier
+                    parent_map.insert(make_pair(left_point, current_point));  // and register this node as it's parent
+                    current_exitinfo.exits[LEFT] = make_pair(-1,-1);          // Mark this exit invalid now
+                }
+            }
+            if((current_exitinfo.exits[DOWN].first > -1) && (current_exitinfo.exits[DOWN].second > -1)) {
+                int down_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, DOWN);
+                if (down_cost == it_lowest_ccost) {
+                    point down_point = make_pair(current_point.first+1, current_point.second);
+                    std::cout << "  DOWN  - Pushing " << down_point.first << "/" << down_point.second << " (" << down_cost << ") into next frontier" << std::endl;
+                    next_frontier.push_back(down_point);                      // Put the node at that exit in our next frontier
+                    parent_map.insert(make_pair(down_point, current_point));  // and register this node as it's parent
+                    current_exitinfo.exits[DOWN] = make_pair(-1,-1);          // Mark this exit invalid now
+                }
+            }
+            if((current_exitinfo.exits[RIGHT].first > -1) && (current_exitinfo.exits[RIGHT].second > -1)) {
+                int right_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, RIGHT);
+                if (right_cost == it_lowest_ccost) {
+                    point right_point = make_pair(current_point.first, current_point.second+1);
+                    std::cout << "  RIGHT - Pushing " << right_point.first << "/" << right_point.second << " (" << right_cost << ") into next frontier" << std::endl;
+                    next_frontier.push_back(right_point);                     // Put the node at that exit in our next frontier
+                    parent_map.insert(make_pair(right_point, current_point)); // and register this node as it's parent
+                    current_exitinfo.exits[RIGHT] = make_pair(-1,-1);         // Mark this exit invalid now
+                }
+            }
+
+            exit_map.erase(current_point);  // Remove our current point's entry from the map so we can replace it with updated exitinfo
+            exit_map.insert(pair<point,exitinfo>(current_point, current_exitinfo));
+
+            // Re-evaluate our current node to see if it has any valid exits left - if so, add it to the next frontier as well
+            int valid_exits = 0;
+            for (int i = 0; i < 4; i++) {
+                if (current_exitinfo.exits[i].first != -1 && current_exitinfo.exits[i].second != -1) {
+                    valid_exits = 1;
+                }
+            }
+            if (valid_exits) {
+                next_frontier.push_back(current_point);
+            }
+            
+            // If we found the end of the maze, exit the while loop after the current frontier
+            // If we happen to find multiple solutions this row, they will all be of equal cost
+            if (current_point.first == m.rows()-1 && current_point.second == m.columns()-1) {
+                found_path = true;
+                #ifdef DEBUG
+                std::cout << "Discovered the end point!" << std::endl;
+                #endif
+            }
+            
+        }
+
+        #ifdef DEBUG
+        // Iterate over our list and print all the points
+  	    std::cout << std::endl << "Next Frontier:" << std::endl;
+        for (const point & ipoint : next_frontier)
+        {
+        	std::cout << "  " << ipoint.first << "/" << ipoint.second << std::endl;
+        }
+        std::cout << std::endl;
+        #endif
+
+
+        current_frontier = next_frontier;
+        next_frontier.clear();
+        frontier_level++;
+
+        // Safety check - we can't have more frontier levels than squares in the maze
+        if (frontier_level == (m.rows() * m.columns())) {
+            std::cout << "Runaway while loop - frontier level == max number of maze squares" << std::endl;
+            throw(SolveException("Exceeded maximum number of frontier levels", frontier_level));
+        }
+    }
+
+    // If we are here, then we have found the end of the maze
+    current_point = make_pair(m.rows()-1,m.columns()-1); // Start with the point at the end of the maze
+    pointlist.push_front(current_point);                 // Add that point to the list
+    current_parent = parent_map.at(current_point);       // Get that node's parent
+
+    // Iterate backwards over our solution list until we hit -1/-1, the parent of 0,0
+    while (current_parent.first != -1 && current_parent.second != -1) {
+        current_point = current_parent;                  // Move backwards through the solution path
+        pointlist.push_front(current_point);             // Add each point of the solution to the list
+        current_parent = parent_map.at(current_point);   // Get the parent for each node
+    }
+ 
+    #ifdef DEBUG
+    // Iterate over our list and print all the points
+  	std::cout << std::endl << "Final list:" << std::endl;
+    for (const point & ipoint : pointlist)
+    {
+    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
+    }
+    #endif
+
+    return pointlist;
 }
 
 path solve_tour(Maze& m, int rows, int cols)
