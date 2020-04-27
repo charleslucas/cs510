@@ -4,3 +4,6 @@ all:
 
 debug:
 	g++ maze.cpp solve.cpp -std=c++1z -o maze -g
+
+ddebug:
+	g++ maze.cpp solve.cpp -std=c++1z -o maze -g -DDEBUG
