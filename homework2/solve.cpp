@@ -17,6 +17,47 @@ path solve_bfs(Maze& m, int rows, int cols);
 path solve_dijkstra(Maze& m, int rows, int cols);
 path solve_tour(Maze& m, int rows, int cols);
 
+/**
+ * BitmapException denotes an exception from reading in a bitmap.
+ */
+class SolveException : public std::exception
+{
+    // the message to print out
+    std::string _message;
+
+    // position in the bitmap file (in bytes) where the error occured.
+    uint32_t _tree_level;
+
+public:
+    SolveException() = delete;
+
+    SolveException(const std::string& message, uint32_t tree_level);
+    SolveException(std::string&& message, uint32_t tree_level);
+
+    /**
+     * prints out the exception in the form:
+     *
+     * "Error in solver at position 0xposition :
+     * message"
+     */
+    void print_exception();
+};
+
+/**
+ * SolveException denotes an exception from a maze solver.
+ */
+SolveException::SolveException(const std::string& message, uint32_t tree_level) {
+    _message  = message;
+    _tree_level = tree_level;
+}
+SolveException::SolveException(std::string&& message, uint32_t tree_level) {
+    _message  = message;
+    _tree_level = tree_level;
+}
+void SolveException::print_exception() {
+    std::cout << "Solver Exception:  " << _message << " - tree level " << _tree_level << std::endl;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -149,22 +190,8 @@ path solve_left(Maze& m, int rows, int cols)
         current_row = next_row;
         current_col = next_col;
 
-        if(     m.can_go_up(current_row, current_col)) {
-            cout << "UP    at point " << current_row << "/" << current_col << std::endl;
-        }
-        if(     m.can_go_left(current_row, current_col)) {
-            cout << "LEFT  at point " << current_row << "/" << current_col << std::endl;
-        }
-        if(     m.can_go_down(current_row, current_col)) {
-            cout << "DOWN  at point " << current_row << "/" << current_col << std::endl;
-        }
-        if(     m.can_go_right(current_row, current_col)) {
-            cout << "RIGHT at point " << current_row << "/" << current_col << std::endl;
-        }
-
-
-        if(m.can_go(relative_left,       current_row, current_col)) { // Can we go left?
-            forward = relative_left;                                  // Turn to face left
+        if(m.can_go(relative_left,       current_row, current_col)) {  // Can we go left?
+            forward = relative_left;                                   // Turn to face left
         }
         else if(m.can_go(forward,        current_row, current_col)) {  // Can we go forward?
         }       
@@ -175,6 +202,7 @@ path solve_left(Maze& m, int rows, int cols)
             forward = relative_back;                                   // Turn around
         }
 
+        // Choose our next point based on which way we are facing
         if      (forward == UP) {
             next_row = current_row - 1;
         }
@@ -454,69 +482,77 @@ path solve_bfs(Maze& m, int rows, int cols)
     int  tree_level = 0;                  // Current tree level
     bool found_path = 0;                  // Set this when we reach the end square
 
-    point current_point = make_pair(0,0);       // first=row, second=col, always start at 0,0
+    point current_point = make_pair(0,0); // first=row, second=col, always start at 0,0
     exitinfo  current_exitinfo;
 
-    current_row.push_back(current_point);    // Insert our first point into the first tree row
+    point current_parent;                 // For use while constructing our final list
+
+    current_row.push_back(current_point); // Insert our first point into the first tree row
     parent_map.insert(pair<point,point>(current_point, make_pair(-1,-1)));  // Use -1,-1 to denote that our root node has no parent
 
     // Discover the exits for each point in each possible path until we find the end
     while(found_path == false) {
 
-        std::cout << std::endl << "Discovering maze tree level " << tree_level << std::endl;
+        #ifdef DEBUG
+        std::cout << "Discovering maze tree level " << tree_level << std::endl;
+        #endif
 
         // Iterate over all the points in the current tree row, find their exits
         for (std::list<point>::iterator it = current_row.begin(); it != current_row.end(); it++) {
             point it_point = *it;
             current_point = make_pair(it_point.first, it_point.second);
+
+            #ifdef DEBUG
             std::cout << "current_point = " << current_point.first << "/" << current_point.second << std::endl;
+            #endif
 
             point current_parent = parent_map.at(current_point);
-            cout << "  parent point " << current_parent.first << "/" << current_parent.second << std::endl;
+
+            #ifdef DEBUG
+            std::cout << "  parent point " << current_parent.first << "/" << current_parent.second << std::endl;
+            #endif
 
             bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
             bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
             bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
             bool can_go_right = m.can_go_right(current_point.first, current_point.second);
+            #ifdef DEBUG
             cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
+            #endif
          
             // Determine all the exits from our current point
-            if(can_go_up) {                           // Can we go up?
-                cout << "UP    at point " << current_point.first << "/" << current_point.second << std::endl;
+            if(can_go_up) {                                   // Can we go up?
                 point up_point = make_pair(current_point.first-1, current_point.second);
-                current_exitinfo.exits[0] = up_point;     // Store the x,y for the point to up
+                current_exitinfo.exits[0] = up_point;         // Store the x,y for the point to up
+
                 if ((up_point != current_parent) && (exit_map.count(up_point) == 0)) {
-                    cout << "  up     point " << up_point.first << "/" << up_point.second << std::endl;
                     next_row.push_back(up_point);             // Insert the exit point into the next tree row
                     parent_map.insert(pair<point,point>(up_point, current_point));  // Insert our current node into the parent tree map
                 }
             }
-            if(can_go_left) {                         // Can we go left?
-                cout << "LEFT  at point " << current_point.first << "/" << current_point.second << std::endl;
+            if(can_go_left) {                                 // Can we go left?
                 point left_point = make_pair(current_point.first, current_point.second-1);
-                current_exitinfo.exits[1] = left_point;   // Store the x,y for the point to the left
+                current_exitinfo.exits[1] = left_point;       // Store the x,y for the point to the left
+
                 if ((left_point != current_parent) && (exit_map.count(left_point) == 0)) {
-                    cout << "  left   point " << left_point.first << "/" << left_point.second << std::endl;
                     next_row.push_back(left_point);           // Insert the exit point into the next tree row
                     parent_map.insert(pair<point,point>(left_point, current_point));  // Insert our current node into the parent tree map
                 }
             }
-            if(can_go_down) {                         // Can we go down?
-                cout << "DOWN  at point " << current_point.first << "/" << current_point.second << std::endl;
+            if(can_go_down) {                                 // Can we go down?
                 point down_point = make_pair(current_point.first+1, current_point.second);
-                current_exitinfo.exits[2] = down_point;   // Store the x,y for the point to down
+                current_exitinfo.exits[2] = down_point;       // Store the x,y for the point to down
+
                 if ((down_point != current_parent) && (exit_map.count(down_point) == 0)) {
-                    cout << "  down   point " << down_point.first << "/" << down_point.second << std::endl;
                     next_row.push_back(down_point);           // Insert the exit point into the next tree row
                     parent_map.insert(pair<point,point>(down_point, current_point));  // Insert our current node into the parent tree map
                 }
             }       
-            if(can_go_right) {                         // Can we go right?
-                cout << "RIGHT at point " << current_point.first << "/" << current_point.second << std::endl;
+            if(can_go_right) {                                // Can we go right?
                 point right_point = make_pair(current_point.first, current_point.second+1);
-                current_exitinfo.exits[3] = right_point;  // Store the x,y for the point to the right
+                current_exitinfo.exits[3] = right_point;      // Store the x,y for the point to the right
+
                 if ((right_point != current_parent) && (exit_map.count(right_point) == 0)) {
-                    cout << "  right  point " << right_point.first << "/" << right_point.second << std::endl;
                     next_row.push_back(right_point);          // Insert the exit point into the next tree row
                     parent_map.insert(pair<point,point>(right_point, current_point));  // Insert our current node into the parent tree map
                 }
@@ -524,107 +560,49 @@ path solve_bfs(Maze& m, int rows, int cols)
 
             exit_map.insert(pair<point,exitinfo>(current_point, current_exitinfo));  // Insert our current node into the tree map
 
-            // If we found the end of the maze, exit the while loop
+            // If we found the end of the maze, exit the while loop after the current row
+            // If we happen to find multiple solutions this row, they will all be of equal length
             if (current_point.first == m.rows()-1 && current_point.second == m.columns()-1) {
                 found_path = true;
+                #ifdef DEBUG
                 std::cout << "Discovered the end point!" << std::endl;
+                #endif
             }
+            
         }
 
-        // Copy the contents of next_row over current_row
-        std::cout << "current_list1:  ";
-        for (std::list<point>::iterator it = current_row.begin(); it != current_row.end(); it++) {
-            point p = *it;
-            std::cout << p.first << "/" << p.second << ",";
-        }
-        std::cout << std::endl;
         current_row = next_row;
         next_row.clear();
-        std::cout << "current_list2:  ";
-        for (std::list<point>::iterator it = current_row.begin(); it != current_row.end(); it++) {
-            point p = *it;
-            std::cout << p.first << "/" << p.second << ",";
-        }
-        std::cout << std::endl;
-
         tree_level++;
 
+        // Safety check - we can't have more tree levels than squares in the maze
+        if (tree_level == (m.rows() * m.columns())) {
+            std::cout << "Runaway while loop - tree level == max number of maze squares" << std::endl;
+            throw(SolveException("Exceeded maximum number of tree levels", tree_level));
+        }
     }
 
-    // Iterate over our current set of exit points and see if we have seen them before
+    // If we are here, then we have found the end of the maze
+    current_point = make_pair(m.rows()-1,m.columns()-1); // Start with the point at the end of the maze
+    pointlist.push_front(current_point);                 // Add that point to the list
+    current_parent = parent_map.at(current_point);       // Get that node's parent
 
-    // Push start point onto the list
-    //pointlist.push_back(current_point);
+    // Iterate backwards over our solution list until we hit -1/-1, the parent of 0,0
+    while (current_parent.first != -1 && current_parent.second != -1) {
+        current_point = current_parent;                  // Move backwards through the solution path
+        pointlist.push_front(current_point);             // Add each point of the solution to the list
+        current_parent = parent_map.at(current_point);   // Get the parent for each node
+    }
+ 
+    #ifdef DEBUG
+    // Iterate over our list and print all the points
+  	std::cout << std::endl << "Final list:" << std::endl;
+    for (const point & ipoint : pointlist)
+    {
+    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
+    }
+    #endif
 
-//    //#ifdef DEBUG
-//    std::cout << "push point:  row:  " << next_point.first << "  col:  " << next_point.second << std::endl;
-//    //#endif
-//
-//    // Calculate our path points and push them onto the list
-//    while(next_row < m.rows()-1 || next_col < m.columns()-1) {
-//        int relative_left  = (forward+1)%4;
-//        int relative_back  = (forward+2)%4;
-//        int relative_right = (forward+3)%4;
-//
-//        current_row = next_row;
-//        current_col = next_col;
-//
-//        if(m.can_go(relative_left,       current_row, current_col)) {  // Can we go left?
-//            forward = relative_left;                                   // Turn to face left
-//            directionlist.push_back(forward);                          // Push relative left onto the direction stack
-//        }
-//        else if(m.can_go(forward,        current_row, current_col)) {  // Can we go forward?
-//            directionlist.push_back(forward);                          // Push forward onto the direction stack
-//        }       
-//        else if(m.can_go(relative_right, current_row, current_col)) {  // Can we go right?
-//            forward = relative_right;                                  // Turn to face right
-//            directionlist.push_back(forward);                          // Push relative right onto the direction stack
-//        }       
-//        else {
-//            //forward = relative_back;                                   // Turn around
-//
-//            // Pop the last entry off both stacks
-//            directionlist.pop_back();
-//            pointlist.pop_back();
-//            
-//            // Recover our new current location
-//            next_row = pointlist.back().first;
-//            next_col = pointlist.back().second;
-//
-//            break;  // Exit this loop iteration, go check the next direction from where we are pointing
-//        }
-//
-//        // Translate back from relative to cardinal directions
-//        if      (forward == UP) {
-//            next_row = current_row - 1;
-//        }
-//        else if (forward == LEFT) { 
-//            next_col = current_col - 1;
-//        }
-//        else if (forward == DOWN) {
-//            next_row = current_row + 1;
-//        }
-//        else if (forward == RIGHT) {
-//            next_col = current_col + 1;
-//        }
-//        else {
-//            std::cout << "FAIL - bad direction value.";
-//        }
-//
-//        next_point = make_pair(next_row,next_col);
-//        pointlist.push_back(next_point);
-//        //#ifdef DEBUG
-//        std::cout << "push point:  row:  " << next_point.first << "  col:  " << next_point.second << std::endl;
-//        //#endif
-//    }
-//
-//    #ifdef DEBUG
-//    for (const point & ipoint : pointlist)
-//    {
-//    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-//    }
-//    #endif
-    
     return pointlist;
 }
 
