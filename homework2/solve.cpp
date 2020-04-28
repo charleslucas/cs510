@@ -9,11 +9,13 @@
 #include<climits>
 #include<sstream>
 #include<map>
+#include<iomanip>
 using namespace std;
 
 path solve_left(Maze& m, int rows, int cols);
 path solve_dfs(Maze& m, int rows, int cols);
 path solve_bfs(Maze& m, int rows, int cols);
+path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end);
 path solve_dijkstra(Maze& m, int rows, int cols);
 path solve_tour(Maze& m, int rows, int cols);
 
@@ -102,68 +104,67 @@ int main(int argc, char** argv)
 
     if(opt == "-left")
     {
-        cout << "\nSolved left" << endl;
+        cout << "\nSolving left" << endl;
         path p = solve_left(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
     }
 
     if(opt == "-dfs")
     {
-        cout << "\nSolved dfs" << endl;
+        cout << "\nSolving dfs" << endl;
         path p = solve_dfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
     }
 
-
     if(opt == "-bfs")
     {
-        cout << "\nSolved bfs" << endl;
+        cout << "\nSolving bfs" << endl;
         path p = solve_bfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
     }
 
     if(opt == "-dij")
     {
-        cout << "\nSolved dijkstra" << endl;
+        cout << "\nSolving dijkstra" << endl;
         path p = solve_dijkstra(m, rows, cols);
         m.print_maze_with_path(cout, p, true, false);
     }
 
     if(opt == "-tour")
     {
-        cout << "\nSolved all courners tour" << endl;
+        cout << "\nSolving all courners tour" << endl;
         path p = solve_tour(m, rows, cols);
         m.print_maze_with_path(cout, p, true, true);
     }
     if(opt == "-basic")
     {
-        cout << "\nSolved dfs" << endl;
+        cout << "\nSolving dfs" << endl;
         path p = solve_dfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
 
-        cout << "\nSolved bfs" << endl;
+        cout << "\nSolving bfs" << endl;
         p = solve_bfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
 
-        cout << "\nSolved dijkstra" << endl;
+        cout << "\nSolving dijkstra" << endl;
         p = solve_dijkstra(m, rows, cols);
         m.print_maze_with_path(cout, p, true, false);
     }
     if(opt == "-advanced")
     {
-        cout << "\nSolved dfs" << endl;
+        cout << "\nSolving dfs" << endl;
         path p = solve_dfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
 
-        cout << "\nSolved bfs" << endl;
+        cout << "\nSolving bfs" << endl;
         p = solve_bfs(m, rows, cols);
         m.print_maze_with_path(cout, p, false, false);
 
-        cout << "\nSolved dijkstra" << endl;
+        cout << "\nSolving dijkstra" << endl;
         p = solve_dijkstra(m, rows, cols);
         m.print_maze_with_path(cout, p, true, false);
 
-        cout << "\nSolved all courners tour" << endl;
+        cout << "\nSolving all courners tour" << endl;
         p = solve_tour(m, rows, cols);
         m.print_maze_with_path(cout, p, true, true);
     }
@@ -472,6 +473,17 @@ path solve_dfs(Maze& m, int rows, int cols)
 */
 path solve_bfs(Maze& m, int rows, int cols)
 {
+    // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
+    return(solve_bfs_custom(m, rows, cols, make_pair(0,0), make_pair(m.rows()-1, m.columns()-1)));
+}
+
+/*
+ *  Implement a breadth-first algorithm
+ *  Construct a list of just the points that make up the shortest distance from a given start point to the given
+ *  end point - duplicate points in the path are not allowed.
+*/
+path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end)
+{
     list<point> pointlist;  // The resulting point list we will return to the checker
 
     map <point,exitinfo> exit_map;        // Create a map-based tree structure of each room and it's exits
@@ -483,7 +495,7 @@ path solve_bfs(Maze& m, int rows, int cols)
     int  tree_level = 0;                  // Current tree level
     bool found_path = 0;                  // Set this when we reach the end square
 
-    point current_point = make_pair(0,0); // first=row, second=col, always start at 0,0
+    point current_point = start;          // first=row, second=col, start at our given coordinate
     exitinfo  current_exitinfo;
 
     point current_parent;                 // For tracking the parent chain while constructing our final list
@@ -494,32 +506,17 @@ path solve_bfs(Maze& m, int rows, int cols)
     // Discover the exits for each point in each possible path until we find the end
     while(found_path == false) {
 
-        #ifdef DEBUG
-        std::cout << "Discovering maze tree level " << tree_level << std::endl;
-        #endif
-
         // Iterate over all the points in the current tree row, find their exits
         for (std::list<point>::iterator it = current_row.begin(); it != current_row.end(); it++) {
             point it_point = *it;
             current_point = make_pair(it_point.first, it_point.second);
 
-            #ifdef DEBUG
-            std::cout << "current_point = " << current_point.first << "/" << current_point.second << std::endl;
-            #endif
-
             point current_parent = parent_map.at(current_point);
-
-            #ifdef DEBUG
-            std::cout << "  parent point " << current_parent.first << "/" << current_parent.second << std::endl;
-            #endif
 
             bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
             bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
             bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
             bool can_go_right = m.can_go_right(current_point.first, current_point.second);
-            #ifdef DEBUG
-            cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
-            #endif
          
             // Determine all the exits from our current point
             if(can_go_up) {                                   // Can we go up?
@@ -563,28 +560,24 @@ path solve_bfs(Maze& m, int rows, int cols)
 
             // If we found the end of the maze, exit the while loop after the current row
             // If we happen to find multiple solutions this row, they will all be of equal length
-            if (current_point.first == m.rows()-1 && current_point.second == m.columns()-1) {
+            if (current_point == end) {
                 found_path = true;
-                #ifdef DEBUG
-                std::cout << "Discovered the end point!" << std::endl;
-                #endif
             }
-            
         }
 
         current_row = next_row;
         next_row.clear();
         tree_level++;
 
-        // Safety check - we can't have more tree levels than squares in the maze
-        if (tree_level == (m.rows() * m.columns())) {
-            std::cout << "Runaway while loop - tree level == max number of maze squares" << std::endl;
+        // Safety check - we shouldn't have more tree levels than squares in the maze
+        if (tree_level >= (m.rows() * m.columns())) {
+            std::cout << "Runaway while loop - tree level > max number of maze squares" << std::endl;
             throw(SolveException("Exceeded maximum number of tree levels", tree_level));
         }
     }
 
     // If we are here, then we have found the end of the maze
-    current_point = make_pair(m.rows()-1,m.columns()-1); // Start with the point at the end of the maze
+    current_point = end; // Start with the point at the end of the maze
     pointlist.push_front(current_point);                 // Add that point to the list
     current_parent = parent_map.at(current_point);       // Get that node's parent
 
@@ -595,14 +588,14 @@ path solve_bfs(Maze& m, int rows, int cols)
         current_parent = parent_map.at(current_point);   // Get the parent for each node
     }
  
-    #ifdef DEBUG
-    // Iterate over our list and print all the points
-  	std::cout << std::endl << "Final list:" << std::endl;
-    for (const point & ipoint : pointlist)
-    {
-    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-    }
-    #endif
+    //#ifdef DEBUG
+    //// Iterate over our list and print all the points
+  	//std::cout << std::endl << "Final list:" << std::endl;
+    //for (const point & ipoint : pointlist)
+    //{
+    //	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
+    //}
+    //#endif
 
     return pointlist;
 }
@@ -938,7 +931,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
     }
  
     #ifdef DEBUG
-    // Iterate over our list and print all the points
+    // Iterate over our final point list and print all the points before returning
   	std::cout << std::endl << "Final list:" << std::endl;
     for (const point & ipoint : pointlist)
     {
@@ -951,5 +944,35 @@ path solve_dijkstra(Maze& m, int rows, int cols)
 
 path solve_tour(Maze& m, int rows, int cols)
 {
-    return list<point>();
+    // Build our array of important points to iterate over
+    point dungeons[5];
+    int   cost_table[5][5];
+
+    dungeons[0] = make_pair(m.rows()/2, m.columns()/2);  // Our start/end point in the center of the maze
+    dungeons[1] = make_pair(0,          0);              // Top-Left Corner
+    dungeons[2] = make_pair(0,          m.columns()-1);  // Top-Right Corner
+    dungeons[3] = make_pair(m.rows()-1, m.columns()-1);  // Bottom-Right Corner
+    dungeons[4] = make_pair(m.rows()-1, 0);              // Bottom-Left Corner
+
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            path p;  // A list of points
+
+            // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
+            p = solve_bfs_custom(m, rows, cols, dungeons[j], dungeons[i]);
+            cost_table[j][i] = p.size();
+        }
+    }
+
+    #ifdef DEBUG
+    std::cout << endl;
+    std::cout << setw(4) << " " << setw(4) << "0" << setw(4) << "1" << setw(4) << "2" << setw(4) << "3" << setw(4) << "4" << std::endl << std::endl;
+    for (int j = 0; j < 5; j++) {
+        std::cout << setw(4) << j << setw(4) << cost_table[j][0] << setw(4) << cost_table[j][1] << setw(4) << cost_table[j][2] << setw(4) << cost_table[j][3] << setw(4) << cost_table[j][4] << std::endl;
+    }
+    std::cout << endl;
+    #endif
+
+    path q = solve_bfs_custom(m, rows, cols, dungeons[1], dungeons[3]);
+    return q;
 }
