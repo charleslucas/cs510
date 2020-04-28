@@ -668,22 +668,25 @@ path solve_dijkstra(Maze& m, int rows, int cols)
 
             //  If this point already exists in our map
             if (exit_map.count(current_point) > 0) {
+                #ifdef DEBUG
                 std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " already exists" << std::endl;
+                #endif
+
                 current_exitinfo = exit_map.at(current_point);          // Get our known exit info for the current point
 
                 // Iterate over our known valid exits for this node to find the lowest cumulative cost
                 for (int i = 0; i < 4; i++) {
-                    std::cout << "  Evaluating costs [" << i << "]" << current_exitinfo.exits[i].first << "/" << current_exitinfo.exits[i].second << ":  (" << current_exitinfo.exit_ccosts[i] << ")" << std::endl;
                     if (current_exitinfo.exits[i].first > -1 && current_exitinfo.exits[i].second > -1 && 
                         it_lowest_ccost > current_exitinfo.exit_ccosts[i]) {
                             it_lowest_ccost = current_exitinfo.exit_ccosts[i];
                         }
                 }
-                std::cout << "  Lowest cost (created):  " << it_lowest_ccost << std::endl;
             }
             else {  // Create a new node
 
+                #ifdef DEBUG
                 std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " doesn't exist - creating" << std::endl;
+                #endif
 
                 // Determine our current node's base cumulative cost (unless we're at root, then set it to 0)
                 if (current_point.first == 0 && current_point.second == 0) {
@@ -707,10 +710,9 @@ path solve_dijkstra(Maze& m, int rows, int cols)
                         current_exitinfo.ccost = parent_exitinfo.ccost + m.cost(current_parent.first, current_parent.second, LEFT);
                     }
                     else {
-                        std::cout << "Error - didn't locte a parent node" << std::endl;
+                        std::cout << "Error - didn't locate a parent node" << std::endl;
                     }
                 }
-                std::cout << "  cumulative_cost =  " << current_exitinfo.ccost << std::endl;
 
                 bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
                 bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
@@ -721,10 +723,6 @@ path solve_dijkstra(Maze& m, int rows, int cols)
                 point  left_point = make_pair(current_point.first, current_point.second-1);
                 point  down_point = make_pair(current_point.first+1, current_point.second);
                 point right_point = make_pair(current_point.first, current_point.second+1);
-
-                #ifdef DEBUG
-                std::cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
-                #endif
 
                 // Determine cost for all the exits from our current point that aren't our parent
                 if (can_go_up && (up_point != current_parent)) {
@@ -784,14 +782,15 @@ path solve_dijkstra(Maze& m, int rows, int cols)
                     current_exitinfo.exit_ccosts[RIGHT] = -1;
                 }
 
-                std::cout << "  Lowest cost (new):  " << it_lowest_ccost << std::endl;
                 exit_map.insert(pair<point,exitinfo>(current_point, current_exitinfo));  // Insert our new node into the tree map
                 parent_map.insert(pair<point,point> (current_point, current_parent));    // and register it's parent
 
             }
         }
 
-        std::cout << std::endl << "  Lowest cumulative cost:  " << it_lowest_ccost << std::endl << std::endl;
+        #ifdef DEBUG
+        std::cout << std::endl << "  Lowest cumulative cost over current frontier:  " << it_lowest_ccost << std::endl << std::endl;
+        #endif
 
         // Iterate over the current frontier row again, construct our next frontier based on the lowest cost exits from this one
         // All these nodes should exist in the exit map now
@@ -809,23 +808,19 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
             bool can_go_right = m.can_go_right(current_point.first, current_point.second);
 
-            #ifdef DEBUG
-            cout << "  UP: " << can_go_up <<"  LEFT: " << can_go_left << "  DOWN: " << can_go_down << "  RIGHT: " << can_go_right << std::endl;
-            #endif
-         
             // If one or more exits are equal to our lowest cumulative cost, add them to the next frontier
             if((current_exitinfo.exits[UP].first > -1) && (current_exitinfo.exits[UP].second > -1)) {
                 const int up_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, UP);
-                std::cout << "  UP:    (" << up_cost << ")" << std::endl;
                 if (up_cost == it_lowest_ccost) {
                     const point up_point = make_pair(current_point.first-1, current_point.second);
-                    std::cout << "  UP    - Pushing " << up_point.first << "/" << up_point.second << " (" << up_cost << ") into next frontier" << std::endl;
 
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(up_point, current_point));
                     if (ret.second == false) {
+                        #ifdef DEBUG
                         std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (UP)" << std::endl;
+                        #endif
                         next_frontier.push_back(up_point);                       // Put the node at that exit in our next frontier
                         current_exitinfo.exits[UP] = make_pair(-1,-1);           // Mark this exit invalid now
                     }
@@ -833,16 +828,16 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             }
             if((current_exitinfo.exits[LEFT].first > -1) && (current_exitinfo.exits[LEFT].second > -1)) {
                 const int left_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, LEFT);
-                std::cout << "  LEFT:  (" << left_cost << ")" << std::endl;
                 if (left_cost == it_lowest_ccost) {
                     const point left_point = make_pair(current_point.first, current_point.second-1);
-                    std::cout << "  LEFT  - Pushing " << left_point.first << "/" << left_point.second << " (" << left_cost << ") into next frontier" << std::endl;
 
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(left_point, current_point));
                     if (ret.second == false) {
+                        #ifdef DEBUG
                         std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (LEFT)" << std::endl;
+                        #endif
                         next_frontier.push_back(left_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[LEFT] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -850,16 +845,15 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             }
             if((current_exitinfo.exits[DOWN].first > -1) && (current_exitinfo.exits[DOWN].second > -1)) {
                 const int down_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, DOWN);
-                std::cout << "  DOWN:  (" << down_cost << ")" << std::endl;
                 if (down_cost == it_lowest_ccost) {
                     const point down_point = make_pair(current_point.first+1, current_point.second);
-                    std::cout << "  DOWN  - Pushing " << down_point.first << "/" << down_point.second << " (" << down_cost << ") into next frontier" << std::endl;
-
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(down_point, current_point));
                     if (ret.second == false) {
+                        #ifdef DEBUG
                         std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (DOWN)" << std::endl;
+                        #endif
                         next_frontier.push_back(down_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[DOWN] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -867,16 +861,16 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             }
             if((current_exitinfo.exits[RIGHT].first > -1) && (current_exitinfo.exits[RIGHT].second > -1)) {
                 const int right_cost = current_exitinfo.ccost + m.cost(current_point.first, current_point.second, RIGHT);
-                std::cout << " RIGHT:  (" << right_cost << ")" << std::endl;
                 if (right_cost == it_lowest_ccost) {
                     const point right_point = make_pair(current_point.first, current_point.second+1);
-                    std::cout << "  RIGHT - Pushing " << right_point.first << "/" << right_point.second << " (" << right_cost << ") into next frontier" << std::endl;
 
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(right_point, current_point));
                     if (ret.second == false) {
+                        #ifdef DEBUG
                         std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (RIGHT)" << std::endl;
+                        #endif
                         next_frontier.push_back(right_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[RIGHT] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -890,7 +884,6 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             int valid_exits = 0;
             for (int i = 0; i < 4; i++) {
                 if (current_exitinfo.exits[i].first != -1 && current_exitinfo.exits[i].second != -1) {
-                    std::cout << "Valid check:  exit[" << i << "] is valid" << std::endl;
                     valid_exits = 1;
                 }
             }
@@ -919,11 +912,11 @@ path solve_dijkstra(Maze& m, int rows, int cols)
         std::cout << std::endl;
         #endif
 
-        //// Safety check - we can't have more frontier levels than squares in the maze
-        //if (frontier_level > (m.rows() * m.columns())) {
-        //    std::cout << "Runaway while loop - frontier level == max number of maze squares" << std::endl;
-        //    throw(SolveException("Exceeded maximum number of frontier levels", frontier_level));
-        //}
+        // While loop safety check
+        if (frontier_level > (5 * m.rows() * m.columns())) {
+            std::cout << "Runaway while loop - frontier level == " << frontier_level << std::endl;
+            throw(SolveException("Runaway While Loop - Exceeded maximum number of frontier levels", frontier_level));
+        }
 
         current_frontier = next_frontier;
         current_frontier.sort();
