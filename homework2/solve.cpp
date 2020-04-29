@@ -134,7 +134,7 @@ int main(int argc, char** argv)
 
     if(opt == "-tour")
     {
-        cout << "\nSolving all courners tour" << endl;
+        cout << "\nSolving all corners tour" << endl;
         path p = solve_tour(m, rows, cols);
         m.print_maze_with_path(cout, p, true, true);
     }
@@ -166,7 +166,7 @@ int main(int argc, char** argv)
         p = solve_dijkstra(m, rows, cols);
         m.print_maze_with_path(cout, p, true, false);
 
-        cout << "\nSolving all courners tour" << endl;
+        cout << "\nSolving all corners tour" << endl;
         p = solve_tour(m, rows, cols);
         m.print_maze_with_path(cout, p, true, true);
     }
@@ -190,10 +190,6 @@ path solve_left(Maze& m, int rows, int cols)
     // Push point 0,0 onto the list
     next_point = make_pair(next_row,next_col);
     pointlist.push_back(next_point);
-
-    #ifdef DEBUG
-    std::cout << "push point:  row:  " << next_point.first << "  col:  " << next_point.second << std::endl;
-    #endif
 
     // Calculate our path points and push them onto the list
     while(next_row < m.rows()-1 || next_col < m.columns()-1) {
@@ -235,17 +231,7 @@ path solve_left(Maze& m, int rows, int cols)
 
         next_point = make_pair(next_row,next_col);
         pointlist.push_back(next_point);
-        #ifdef DEBUG
-        std::cout << "push point:  row:  " << next_point.first << "  col:  " << next_point.second << std::endl;
-        #endif
     }
-
-    #ifdef DEBUG
-    for (const point & ipoint : pointlist)
-    {
-    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-    }
-    #endif
 
     return pointlist;
 }
@@ -288,12 +274,6 @@ path solve_dfs(Maze& m, int rows, int cols)
             // Restore the nodeinfo for this node from the map
             current_nodeinfo = node_map.at(current_point);
 
-            #ifdef DEBUG
-            std::cout << "current_point (backtrack) = " << current_point.first << "/" << current_point.second << std::endl;
-            std::cout << "  previous point " << previous_point.first << "/" << previous_point.second << std::endl;
-            std::cout << "  parent point "   << current_nodeinfo.parent.first << "/" << current_nodeinfo.parent.second << std::endl;
-            #endif
-
             node_map.erase(current_point);  // Remove our current point from the map, we will edit the nodeinfo and put it back later
 
             // Figure out which direction we backtracked from, set that direction to -1 (Row/Column = Y/X)
@@ -310,9 +290,6 @@ path solve_dfs(Maze& m, int rows, int cols)
                 current_nodeinfo.exits[RIGHT] = -1;
             }
 
-            #ifdef DEBUG
-            std::cout << "  UP: " << current_nodeinfo.exits[UP] <<"  LEFT: " << current_nodeinfo.exits[LEFT] << "  DOWN: " << current_nodeinfo.exits[DOWN] << "  RIGHT: " << current_nodeinfo.exits[RIGHT] << std::endl;
-            #endif
         }
         else {
             // Store the last node as our current parent, except if we're at root then store -1,-1
@@ -327,13 +304,6 @@ path solve_dfs(Maze& m, int rows, int cols)
             can_go_left  = m.can_go_left (current_point.first, current_point.second);
             can_go_down  = m.can_go_down (current_point.first, current_point.second);
             can_go_right = m.can_go_right(current_point.first, current_point.second);
-
-            #ifdef DEBUG
-            std::cout << "current_point (forward) = " << current_point.first << "/" << current_point.second << std::endl;
-            std::cout << "  previous point " << previous_point.first << "/" << previous_point.second << std::endl;
-            std::cout << "  parent point "   << current_nodeinfo.parent.first << "/" << current_nodeinfo.parent.second << std::endl;
-            std::cout << "  can_go_up: "     << can_go_up <<"  can_go_left: " << can_go_left << "  can_go_down: " << can_go_down << "  can_go_right: " << can_go_right << std::endl;
-            #endif
 
             if (can_go_up) {
                 point up_from_here = make_pair(current_point.first-1, current_point.second);
@@ -394,10 +364,6 @@ path solve_dfs(Maze& m, int rows, int cols)
             else {
                 current_nodeinfo.exits[RIGHT] = 0;
             }
-
-            #ifdef DEBUG
-            std::cout << "  UP: " << current_nodeinfo.exits[UP] <<"  LEFT: " << current_nodeinfo.exits[LEFT] << "  DOWN: " << current_nodeinfo.exits[DOWN] << "  RIGHT: " << current_nodeinfo.exits[RIGHT] << std::endl;
-            #endif
         }
 
         // Iterate over the valid exits and choose the next one in order
@@ -418,21 +384,12 @@ path solve_dfs(Maze& m, int rows, int cols)
             // If there are no valid exits then either we are at the end or we need to backtrack
             if (current_point.first == m.rows()-1 && current_point.second == m.columns()-1) {
                 next_point = make_pair(-1,-1);
-                #ifdef DEBUG
-                std::cout << "Found the End! " << next_point.first << "/" << next_point.second << std::endl;
-                #endif
             }
             else {
                 backtrack = true;
                 next_point = current_nodeinfo.parent;
-                #ifdef DEBUG
-                std::cout << "Backtracking to " << current_nodeinfo.parent.first << "/" << current_nodeinfo.parent.second << std::endl;
-                #endif
             }
         }
-        #ifdef DEBUG
-        std::cout << "  next point "   << next_point.first << "/" << next_point.second << std::endl;
-        #endif
 
         // If we have to backtrack, pop our node off the list, set the parent as our next node
         if (backtrack) {
@@ -440,31 +397,16 @@ path solve_dfs(Maze& m, int rows, int cols)
             #endif
             point popped = pointlist.back();
             pointlist.pop_back();
-            #ifdef DEBUG
-            std::cout << "popped point:  row:  " << popped.first << "  col:  " << popped.second << std::endl;
-            #endif
         }
         else {
             // Otherwise, push our current node onto the list and map
             // Store our predicted next point in the current point's nodeinfo
-            #ifdef DEBUG
-            std::cout << "pushing point:  row:  " << current_point.first << "  col:  " << current_point.second << std::endl;
-            #endif
             pointlist.push_back(current_point);
             current_nodeinfo.next = next_point;
             node_map.insert(pair<point,nodeinfo>(current_point, current_nodeinfo));
        }
 
     }
-
-    #ifdef DEBUG
-    // Iterate over our list and print all the points
-  	std::cout << std::endl << "Final list:" << std::endl;
-    for (const point & ipoint : pointlist)
-    {
-    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-    }
-    #endif
 
     return pointlist;
 }
@@ -590,15 +532,6 @@ path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end)
         current_parent = parent_map.at(current_point);   // Get the parent for each node
     }
  
-    //#ifdef DEBUG
-    //// Iterate over our list and print all the points
-  	//std::cout << std::endl << "Final list:" << std::endl;
-    //for (const point & ipoint : pointlist)
-    //{
-    //	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-    //}
-    //#endif
-
     return pointlist;
 }
 
@@ -643,10 +576,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
         int    lowest_ccost = 0;  // The lowest cumulative movement cost we've found so far
         int it_lowest_ccost = 9 * m.rows() * m.columns();  // Lowest cumulative movement cost we've found for each iteration (set to the max possible cost)
 
-        #ifdef DEBUG
-        std::cout << "Discovering maze frontier level " << frontier_level << std::endl;
-        #endif
-
         // Iterate over the current frontier row, fill out all the data for new nodes and figure out the lowest ccost for this frontier
         for (std::list<point>::iterator it = current_frontier.begin(); it != current_frontier.end(); it++) {
             exitinfo current_exitinfo;
@@ -655,10 +584,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             point it_point = *it;
             current_point = make_pair(it_point.first, it_point.second);
             
-            #ifdef DEBUG
-            std::cout << std::endl << "  current_point = " << current_point.first << "/" << current_point.second << std::endl;
-            #endif
-
             // Get the known info for the current point's parent (unless we're the root node)
             if (current_point == start) {
                 current_parent = make_pair(-1,-1);
@@ -668,15 +593,11 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                 parent_exitinfo = exit_map.at(current_parent);
             }
 
-            #ifdef DEBUG
-            std::cout << "  parent point " << current_parent.first << "/" << current_parent.second << std::endl;
-            #endif
-
             //  If this point already exists in our map
             if (exit_map.count(current_point) > 0) {
-                #ifdef DEBUG
-                std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " already exists" << std::endl;
-                #endif
+                //#ifdef DEBUG
+                //std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " already exists" << std::endl;
+                //#endif
 
                 current_exitinfo = exit_map.at(current_point);          // Get our known exit info for the current point
 
@@ -690,9 +611,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             }
             else {  // Create a new node
 
-                #ifdef DEBUG
-                std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " doesn't exist - creating" << std::endl;
-                #endif
+                //#ifdef DEBUG
+                //std::cout << "  Current_point " << current_point.first << "/" << current_point.second << " doesn't exist - creating" << std::endl;
+                //#endif
 
                 // Determine our current node's base cumulative cost (unless we're at root, then set it to 0)
                 if (current_point == start) {
@@ -736,9 +657,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
                     current_exitinfo.exits[UP] = up_point;
                     current_exitinfo.exit_ccosts[UP] = ccost;
-                    #ifdef DEBUG
-                    std::cout << "  UP    cost = " << ccost << std::endl;
-                    #endif
                 }
                 else
                 {   // Mark that exit invalid
@@ -750,9 +668,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
                     current_exitinfo.exits[LEFT] = left_point;
                     current_exitinfo.exit_ccosts[LEFT] = ccost;
-                    #ifdef DEBUG
-                    std::cout << "  LEFT  cost = " << ccost << std::endl;
-                    #endif
                 }
                 else
                 {   // Mark that exit invalid
@@ -764,9 +679,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
                     current_exitinfo.exits[DOWN] = down_point;
                     current_exitinfo.exit_ccosts[DOWN] = ccost;
-                    #ifdef DEBUG
-                    std::cout << "  DOWN  cost = " << ccost << std::endl;
-                    #endif
                 }
                 else
                 {   // Mark that exit invalid
@@ -778,9 +690,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     if (ccost < it_lowest_ccost) it_lowest_ccost = ccost;
                     current_exitinfo.exits[RIGHT] = right_point;
                     current_exitinfo.exit_ccosts[RIGHT] = ccost;
-                    #ifdef DEBUG
-                    std::cout << "  RIGHT cost = " << ccost << std::endl;
-                    #endif
                 }
                 else
                 {   // Mark that exit invalid
@@ -794,10 +703,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             }
         }
 
-        #ifdef DEBUG
-        std::cout << std::endl << "  Lowest cumulative cost over current frontier:  " << it_lowest_ccost << std::endl << std::endl;
-        #endif
-
         // Iterate over the current frontier row again, construct our next frontier based on the lowest cost exits from this one
         // All these nodes should exist in the exit map now
         for (std::list<point>::iterator it = current_frontier.begin(); it != current_frontier.end(); it++) {
@@ -805,10 +710,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             current_point = make_pair(it_point.first, it_point.second);
             current_exitinfo = exit_map.at(current_point);          // Get our known exit info for the current point
             
-            #ifdef DEBUG
-            std::cout << "  current_point = " << current_point.first << "/" << current_point.second << std::endl;
-            #endif
-
             bool can_go_up    = m.can_go_up(current_point.first, current_point.second);
             bool can_go_left  = m.can_go_left(current_point.first, current_point.second);
             bool can_go_down  = m.can_go_down(current_point.first, current_point.second);
@@ -823,10 +724,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(up_point, current_point));
+
+                    // If we've registered this node already, skip and mark the exit as invalid
                     if (ret.second == false) {
-                        #ifdef DEBUG
-                        std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (UP)" << std::endl;
-                        #endif
                         next_frontier.push_back(up_point);                       // Put the node at that exit in our next frontier
                         current_exitinfo.exits[UP] = make_pair(-1,-1);           // Mark this exit invalid now
                     }
@@ -840,10 +740,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(left_point, current_point));
+
+                    // If we've registered this node already, skip and mark the exit as invalid
                     if (ret.second == false) {
-                        #ifdef DEBUG
-                        std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (LEFT)" << std::endl;
-                        #endif
                         next_frontier.push_back(left_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[LEFT] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -856,10 +755,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(down_point, current_point));
+
+                    // If we've registered this node already, skip and mark the exit as invalid
                     if (ret.second == false) {
-                        #ifdef DEBUG
-                        std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (DOWN)" << std::endl;
-                        #endif
                         next_frontier.push_back(down_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[DOWN] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -873,10 +771,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
                     // Try to register this node as the new node's parent - use the return value to check if we've seen it before
                     std::pair<std::map<point,point>::iterator,bool> ret;
                     ret = parent_map.insert(make_pair(right_point, current_point));
+
+                    // If we've registered this node already, skip and mark the exit as invalid
                     if (ret.second == false) {
-                        #ifdef DEBUG
-                        std::cout << "*** Found the same square multiple times in one frontier loop - ignoring (RIGHT)" << std::endl;
-                        #endif
                         next_frontier.push_back(right_point);                     // Put the node at that exit in our next frontier
                         current_exitinfo.exits[RIGHT] = make_pair(-1,-1);         // Mark this exit invalid now
                     }
@@ -901,22 +798,9 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             // If we happen to find multiple solutions this row, they will all be of equal cost
             if (current_point == end) {
                 found_path = true;
-                #ifdef DEBUG
-                std::cout << "Discovered the end point!" << std::endl;
-                #endif
             }
             
         }
-
-        #ifdef DEBUG
-        // Iterate over our list and print all the points
-  	    std::cout << std::endl << "Next Frontier:" << std::endl;
-        for (const point & ipoint : next_frontier)
-        {
-        	std::cout << "  " << ipoint.first << "/" << ipoint.second << std::endl;
-        }
-        std::cout << std::endl;
-        #endif
 
         // While loop safety check
         if (frontier_level > (5 * m.rows() * m.columns())) {
@@ -943,15 +827,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
         current_parent = parent_map.at(current_point);   // Get the parent for each node
     }
  
-    #ifdef DEBUG
-    // Iterate over our final point list and print all the points before returning
-  	std::cout << std::endl << "Final list:" << std::endl;
-    for (const point & ipoint : pointlist)
-    {
-    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
-    }
-    #endif
-
     return pointlist;
 }
 
@@ -990,8 +865,14 @@ path solve_tour(Maze& m, int rows, int cols)
         for (int j = 0; j < 5; j++) {
             path p;  // A list of points
 
-            // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
+            // Call the bfs/djikstra routine with the matrix of end points.
             p = solve_bfs_custom(m, rows, cols, dungeons[j], dungeons[i]);
+            //p = solve_dijkstra_custom(m, rows, cols, dungeons[j], dungeons[i]);
+
+            // I'm making the assumption here that we only care about distance, and are ignoring the maze weights,
+            //  as per the assignment - "We need to find the shortest one".
+            // If we actually care about the maze weights, then we need to return the weighted cost of the
+            //  paths and select using that instead. 
             cost_matrix[j][i] = p.size();
         }
     }
@@ -1022,11 +903,16 @@ path solve_tour(Maze& m, int rows, int cols)
                             cost_matrix[perm_elements[3]][0];
 
         solution_queue.push(make_pair(corner_order, solution_cost));
-        std::cout << "Solution Cost: " << solution_cost << " from " << perm_elements[0] << ' ' << perm_elements[1] << ' ' << perm_elements[2] << ' ' << perm_elements[3] << '\n';
+        #ifdef DEBUG
+        std::cout << "Solution Distance: " << solution_cost << " from " << perm_elements[0] << ' ' << perm_elements[1] << ' ' << perm_elements[2] << ' ' << perm_elements[3] << std::endl;
+        #endif
     } while (std::next_permutation(perm_elements,perm_elements+4) );
 
     pair<corner_set, int> lowest_cost_solution = solution_queue.top();
-    std::cout << "Lowest Solution Cost:  " << lowest_cost_solution.second << std::endl;
+
+    #ifdef DEBUG
+    std::cout << std::endl << "Lowest Solution Cost:  " << lowest_cost_solution.second << " from " << lowest_cost_solution.first.corners[0] << " -> " << lowest_cost_solution.first.corners[1] << " -> " << lowest_cost_solution.first.corners[2] << " -> " << lowest_cost_solution.first.corners[3] << std::endl << std::endl;
+    #endif
 
     dungeon_path_array[0] = make_pair(                                    dungeons[0], dungeons[lowest_cost_solution.first.corners[0]]);
     dungeon_path_array[1] = make_pair(dungeons[lowest_cost_solution.first.corners[0]], dungeons[lowest_cost_solution.first.corners[1]]);
@@ -1036,7 +922,17 @@ path solve_tour(Maze& m, int rows, int cols)
 
     // Run all six legs of the path and concatenate them together
     for (int i = 0; i < 5; ++i) {
-        path p = solve_dijkstra_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+        #ifdef DEBUG
+        std::cout << "Running path " << dungeon_path_array[i].first.first << "/" << dungeon_path_array[i].first.second << " to " << dungeon_path_array[i].second.first << "/" << dungeon_path_array[i].second.second << std::endl; 
+        #endif
+
+        path p = solve_bfs_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+        //path p = solve_dijkstra_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+
+        // Remove the first element of every list list after the first so we don't have duplicates
+        if (i > 0) {
+            p.pop_front();
+        }
         lowest_cost_path.splice(lowest_cost_path.end(), p);
     }
      
