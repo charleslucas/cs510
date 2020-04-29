@@ -18,7 +18,7 @@ path solve_dfs(Maze& m, int rows, int cols);
 path solve_bfs(Maze& m, int rows, int cols);
 path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end);
 path solve_dijkstra(Maze& m, int rows, int cols);
-path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end);
+path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end, int &path);
 path solve_tour(Maze& m, int rows, int cols);
 
 /**
@@ -541,8 +541,10 @@ path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end)
 */
 path solve_dijkstra(Maze& m, int rows, int cols)
 {
+    int path_cost;
+
     // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
-    return(solve_dijkstra_custom(m, rows, cols, make_pair(0,0), make_pair(m.rows()-1, m.columns()-1)));
+    return(solve_dijkstra_custom(m, rows, cols, make_pair(0,0), make_pair(m.rows()-1, m.columns()-1), path_cost));
 }
 
 /*
@@ -550,9 +552,9 @@ path solve_dijkstra(Maze& m, int rows, int cols)
  *  Construct a list of just the points that make up the lowest-cost distance from a given start point to the given
  *  end point - duplicate points in the path are not allowed.
 */
-path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
+path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end, int& path_cost)
 {
-    list<point> pointlist;  // The resulting point list we will return to the checker
+    list<point> pointlist;                // The resulting point list we will return to the checker
 
     map <point,exitinfo> exit_map;        // Create a map-based tree structure of each room and it's exits
     map <point,point>    parent_map;      // Create a map-based tree structure of each room and it's parent
@@ -796,10 +798,11 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
             
             // If we found the end of the maze, exit the while loop after the current frontier
             // If we happen to find multiple solutions this row, they will all be of equal cost
+            // Store our current lowest cost to return with the final path
             if (current_point == end) {
                 found_path = true;
+                path_cost = it_lowest_ccost;
             }
-            
         }
 
         // While loop safety check
@@ -863,17 +866,21 @@ path solve_tour(Maze& m, int rows, int cols)
     // Create a matrix of the shortest path cost from each dungeon to each other dungeon
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
-            path p;  // A list of points
+            path p;             // A list of points
+            int path_cost;      // The travel cost of the path
 
             // Call the bfs/djikstra routine with the matrix of end points.
-            p = solve_bfs_custom(m, rows, cols, dungeons[j], dungeons[i]);
-            //p = solve_dijkstra_custom(m, rows, cols, dungeons[j], dungeons[i]);
+            //p = solve_bfs_custom(m, rows, cols, dungeons[j], dungeons[i]);
+            p = solve_dijkstra_custom(m, rows, cols, dungeons[j], dungeons[i], path_cost);
 
-            // I'm making the assumption here that we only care about distance, and are ignoring the maze weights,
-            //  as per the assignment - "We need to find the shortest one".
-            // If we actually care about the maze weights, then we need to return the weighted cost of the
-            //  paths and select using that instead. 
-            cost_matrix[j][i] = p.size();
+            // I'm making the assumption here that we care about the maze weights, and not just the distance
+            //  as the assignment appears to say, since we were given a weighted maze.
+            // If we don't actually care about the maze weights, then the cost of the paths is the length of the path.
+            #ifdef TOUR_BFS
+                cost_matrix[j][i] = p.size();
+            #else
+                cost_matrix[j][i] = path_cost;
+            #endif
         }
     }
 
@@ -922,12 +929,18 @@ path solve_tour(Maze& m, int rows, int cols)
 
     // Run all six legs of the path and concatenate them together
     for (int i = 0; i < 5; ++i) {
+        int path_cost;
+
         #ifdef DEBUG
         std::cout << "Running path " << dungeon_path_array[i].first.first << "/" << dungeon_path_array[i].first.second << " to " << dungeon_path_array[i].second.first << "/" << dungeon_path_array[i].second.second << std::endl; 
         #endif
 
-        path p = solve_bfs_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
-        //path p = solve_dijkstra_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+        // As above, select if we want bfs of dijkstra for path fitness
+        #ifdef TOUR_BFS
+            path p = solve_bfs_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+        #else
+            path p = solve_dijkstra_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second, path_cost);
+        #endif
 
         // Remove the first element of every list list after the first so we don't have duplicates
         if (i > 0) {
