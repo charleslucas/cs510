@@ -62,16 +62,31 @@ void SolveException::print_exception() {
     std::cout << "Solver Exception:  " << _message << " - tree level " << _tree_level << std::endl;
 }
 
+// Nodes for an exit mapping tree
 struct nodeinfo {
     point parent;
     point next;
     int exits[4];     // The exits from our current point (0=up, 1=left, 2=down, 3=right) - 0 = no exit, 1 = exit, -1 = backtracked from there
 };
 
+// All the exit data and costs for a point
 struct exitinfo {
     point  exits[4];        // The exits from our current point (0=up, 1=left, 2=down, 3=right)
     int    ccost;           // The *cumulative* cost for this node
     int    exit_ccosts[4];  // The *cumulative* costs for each exit (costs to the node in that direction plus all costs to this point)
+};
+
+// An array of corner IDs
+struct corner_set {
+    int corners[4];
+};
+
+// The comparison function to be used with the priority queue in the tour path fitness selection
+// Should sort the lowest cost (second) value to the top
+struct solution_cmp {
+    bool operator()(const pair<corner_set,int> &a, const pair<corner_set,int> &b) {
+        return a.second > b.second;
+    };
 };
 
 int main(int argc, char** argv)
@@ -832,19 +847,6 @@ path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end, 
  
     return pointlist;
 }
-
-// A structure to handle an array of corner IDs
-struct corner_set {
-    int corners[4];
-};
-
-// The comparison function to be used with the priority queue
-// Should sort the lowest second value to the top
-struct solution_cmp {
-    bool operator()(const pair<corner_set,int> &a, const pair<corner_set,int> &b) {
-        return a.second > b.second;
-    };
-};
 
 path solve_tour(Maze& m, int rows, int cols)
 {
