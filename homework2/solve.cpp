@@ -10,6 +10,7 @@
 #include<sstream>
 #include<map>
 #include<iomanip>
+#include<algorithm>
 using namespace std;
 
 path solve_left(Maze& m, int rows, int cols);
@@ -17,6 +18,7 @@ path solve_dfs(Maze& m, int rows, int cols);
 path solve_bfs(Maze& m, int rows, int cols);
 path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end);
 path solve_dijkstra(Maze& m, int rows, int cols);
+path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end);
 path solve_tour(Maze& m, int rows, int cols);
 
 /**
@@ -606,6 +608,17 @@ path solve_bfs_custom(Maze& m, int rows, int cols, point start, point end)
 */
 path solve_dijkstra(Maze& m, int rows, int cols)
 {
+    // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
+    return(solve_dijkstra_custom(m, rows, cols, make_pair(0,0), make_pair(m.rows()-1, m.columns()-1)));
+}
+
+/*
+ *  Implement a breadth-first algorithm weighted by cost
+ *  Construct a list of just the points that make up the lowest-cost distance from a given start point to the given
+ *  end point - duplicate points in the path are not allowed.
+*/
+path solve_dijkstra_custom(Maze& m, int rows, int cols, point start, point end)
+{
     list<point> pointlist;  // The resulting point list we will return to the checker
 
     map <point,exitinfo> exit_map;        // Create a map-based tree structure of each room and it's exits
@@ -617,7 +630,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
     int  frontier_level = 0;              // How many frontier levels we have iterated through
     bool found_path = false;              // Set this when we reach the end square
 
-    point current_point = make_pair(0,0); // first=row, second=col, always start at 0,0
+    point current_point = start;          // first=row, second=col
     exitinfo  current_exitinfo;
 
     point current_parent;                 // For tracking the parent chain while constructing our final list
@@ -647,7 +660,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             #endif
 
             // Get the known info for the current point's parent (unless we're the root node)
-            if (current_point.first == 0 && current_point.second == 0) {
+            if (current_point == start) {
                 current_parent = make_pair(-1,-1);
             }
             else {
@@ -682,7 +695,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
                 #endif
 
                 // Determine our current node's base cumulative cost (unless we're at root, then set it to 0)
-                if (current_point.first == 0 && current_point.second == 0) {
+                if (current_point == start) {
                     current_exitinfo.ccost = 0;
                 }
                 else {
@@ -886,7 +899,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
             
             // If we found the end of the maze, exit the while loop after the current frontier
             // If we happen to find multiple solutions this row, they will all be of equal cost
-            if (current_point.first == m.rows()-1 && current_point.second == m.columns()-1) {
+            if (current_point == end) {
                 found_path = true;
                 #ifdef DEBUG
                 std::cout << "Discovered the end point!" << std::endl;
@@ -919,7 +932,7 @@ path solve_dijkstra(Maze& m, int rows, int cols)
     }
 
     // If we are here, then we have found the end of the maze
-    current_point = make_pair(m.rows()-1,m.columns()-1); // Start with the point at the end of the maze
+    current_point = end;                                 // Start with the point at the end of the maze
     pointlist.push_front(current_point);                 // Add that point to the list
     current_parent = parent_map.at(current_point);       // Get that node's parent
 
@@ -942,25 +955,44 @@ path solve_dijkstra(Maze& m, int rows, int cols)
     return pointlist;
 }
 
+// A structure to handle an array of corner IDs
+struct corner_set {
+    int corners[4];
+};
+
+// The comparison function to be used with the priority queue
+// Should sort the lowest second value to the top
+struct solution_cmp {
+    bool operator()(const pair<corner_set,int> &a, const pair<corner_set,int> &b) {
+        return a.second > b.second;
+    };
+};
+
 path solve_tour(Maze& m, int rows, int cols)
 {
-    // Build our array of important points to iterate over
-    point dungeons[5];
-    int   cost_table[5][5];
+    point dungeons[5];                          // Our array of dungeon points we need to visit
+    int   cost_matrix[5][5];                    // Our matrix of dungeon-to-dungeon sub-path costs
+    int   perm_elements[4] = {1, 2, 3, 4};      // To calculate permutations
 
+    priority_queue<pair<corner_set, int>, vector<pair<corner_set,int>>, solution_cmp> solution_queue;
+    pair<point,point> dungeon_path_array[5];    // Our final array of shortest-cost dungeon paths to calculate
+    path lowest_cost_path;                      // Our final list of path points to return
+
+    // Make an array of all the "dungeons" we need to visit
     dungeons[0] = make_pair(m.rows()/2, m.columns()/2);  // Our start/end point in the center of the maze
     dungeons[1] = make_pair(0,          0);              // Top-Left Corner
     dungeons[2] = make_pair(0,          m.columns()-1);  // Top-Right Corner
     dungeons[3] = make_pair(m.rows()-1, m.columns()-1);  // Bottom-Right Corner
     dungeons[4] = make_pair(m.rows()-1, 0);              // Bottom-Left Corner
 
+    // Create a matrix of the shortest path cost from each dungeon to each other dungeon
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
             path p;  // A list of points
 
             // Pass-through function to call the bfs routine with the default top-left start and bottom-right end points.
             p = solve_bfs_custom(m, rows, cols, dungeons[j], dungeons[i]);
-            cost_table[j][i] = p.size();
+            cost_matrix[j][i] = p.size();
         }
     }
 
@@ -968,11 +1000,54 @@ path solve_tour(Maze& m, int rows, int cols)
     std::cout << endl;
     std::cout << setw(4) << " " << setw(4) << "0" << setw(4) << "1" << setw(4) << "2" << setw(4) << "3" << setw(4) << "4" << std::endl << std::endl;
     for (int j = 0; j < 5; j++) {
-        std::cout << setw(4) << j << setw(4) << cost_table[j][0] << setw(4) << cost_table[j][1] << setw(4) << cost_table[j][2] << setw(4) << cost_table[j][3] << setw(4) << cost_table[j][4] << std::endl;
+        std::cout << setw(4) << j << setw(4) << cost_matrix[j][0] << setw(4) << cost_matrix[j][1] << setw(4) << cost_matrix[j][2] << setw(4) << cost_matrix[j][3] << setw(4) << cost_matrix[j][4] << std::endl;
     }
     std::cout << endl;
     #endif
 
-    path q = solve_bfs_custom(m, rows, cols, dungeons[1], dungeons[3]);
-    return q;
+    // Iterate over all permutations of our four corners, then find the cost for the set of paths
+    //   start -> corner[0] -> corner[1] -> corner[2] -> corner[3] -> start
+    do {
+        corner_set corner_order;
+        corner_order.corners[0] = perm_elements[0];
+        corner_order.corners[1] = perm_elements[1];
+        corner_order.corners[2] = perm_elements[2];
+        corner_order.corners[3] = perm_elements[3];
+
+        // Calculate our final solution cost, adding up the cost for all six legs of the path
+        int solution_cost = cost_matrix[0]               [perm_elements[0]] +
+                            cost_matrix[perm_elements[0]][perm_elements[1]] +
+                            cost_matrix[perm_elements[1]][perm_elements[2]] +
+                            cost_matrix[perm_elements[2]][perm_elements[3]] +
+                            cost_matrix[perm_elements[3]][0];
+
+        solution_queue.push(make_pair(corner_order, solution_cost));
+        std::cout << "Solution Cost: " << solution_cost << " from " << perm_elements[0] << ' ' << perm_elements[1] << ' ' << perm_elements[2] << ' ' << perm_elements[3] << '\n';
+    } while (std::next_permutation(perm_elements,perm_elements+4) );
+
+    pair<corner_set, int> lowest_cost_solution = solution_queue.top();
+    std::cout << "Lowest Solution Cost:  " << lowest_cost_solution.second << std::endl;
+
+    dungeon_path_array[0] = make_pair(                                    dungeons[0], dungeons[lowest_cost_solution.first.corners[0]]);
+    dungeon_path_array[1] = make_pair(dungeons[lowest_cost_solution.first.corners[0]], dungeons[lowest_cost_solution.first.corners[1]]);
+    dungeon_path_array[2] = make_pair(dungeons[lowest_cost_solution.first.corners[1]], dungeons[lowest_cost_solution.first.corners[2]]);
+    dungeon_path_array[3] = make_pair(dungeons[lowest_cost_solution.first.corners[2]], dungeons[lowest_cost_solution.first.corners[3]]);
+    dungeon_path_array[4] = make_pair(dungeons[lowest_cost_solution.first.corners[3]], dungeons[0]                                    );
+
+    // Run all six legs of the path and concatenate them together
+    for (int i = 0; i < 5; ++i) {
+        path p = solve_dijkstra_custom(m, rows, cols, dungeon_path_array[i].first, dungeon_path_array[i].second);
+        lowest_cost_path.splice(lowest_cost_path.end(), p);
+    }
+     
+    #ifdef DEBUG
+    // Iterate over our final point list and print all the points before returning
+  	std::cout << std::endl << "Final point list:" << std::endl;
+    for (const point & ipoint : lowest_cost_path)
+    {
+    	std::cout << ipoint.first << "/" << ipoint.second << std::endl;
+    }
+    #endif
+
+    return lowest_cost_path;
 }
