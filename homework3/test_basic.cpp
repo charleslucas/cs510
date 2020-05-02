@@ -80,11 +80,34 @@ rule<bool> contra(to(var("a"), lit(false)), tnot(var("a")));
 
 int main()
 {
-    // (!(a \/ a) /\ !true) -> false
+    // (!(x \/ x) /\ !true) -> false
     term_ptr<bool> example = to(tand(tnot(tor(var("x"), var("x"))), tnot(lit(true))), lit(false));
 
-    for(term_ptr<bool> t : example)
+    //test printing
+    // output: ->(and(not(or(x,x)), not(true)), false)
+    cout << *example << endl;
+
+    //test iterating
+    //this should print every term (Not Necessarily in this order)
+    // output: ->(and(not(or(x,x)), not(true)), false)
+    // output: and(not(or(x,x)), not(true))
+    // output: not(or(x,x))
+    // output: or(x,x)
+    // output: x
+    // output: x
+    // output: not(true)
+    // output: true
+    // output: false
+    for(term<bool>& t : *example)
     {
-        cout << *t << endl;
+        cout << t << endl;
     }
+
+    // test doing a simple rewrite
+    // this should give
+    // output: not(and(not(or(a,a)), not(true)))
+    Sub<bool> match;
+    match.extend("a", tand(tnot(tor(var("x"), var("x"))), tnot(lit(true))));
+    example = rewrite(example, *contra.second, vector<int>(), match);
+    cout << *example << endl;
 }
