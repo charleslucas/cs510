@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <iostream>
+#include <stack>
 
 template<typename T>
 struct node {
@@ -11,6 +12,92 @@ struct node {
     node<T>* right;
     node(T v) : value(v), left(nullptr), right(nullptr) {}
     ~node();  // Normally we would clean up memory here
+};
+
+// Our tree iterator class
+template<typename T>
+class tree_iterator {
+    private:
+        //node<T>* _pos;  // Position - where it is in the tree
+        std::stack<node<T>*> _path;  // Track the path from the root node to our current node
+    public:
+        // Constructor
+        // Start at the root and go all the way to the left
+        //tree_iterator<T>(node<T>* root)
+        //{
+        //    _pos = root;
+        //    if(_pos) {
+        //        for(; _pos->left; _pos = _pos->left);
+        //    }
+        //}
+        // Go left, and keep pushing the parent onto the stack
+        tree_iterator<T>(node<T>* n)
+        {
+            if(n) {
+                for(; n->left; n = n->left) {
+                    this._path.push(n);
+                }
+                this._path.push(n);
+            }
+        }
+
+        T&                operator*()  const;          // Dereference
+        T*                operator->() const;          // Call a method on
+        tree_iterator<T>& operator++();                // Preincrement ++ - move the iterator forwards
+        tree_iterator<T>& operator--();                // Preincrement --
+        tree_iterator<T>  operator++(int);             // Postincrement ++
+        tree_iterator<T>  operator--(int);             // Postincrement --
+        tree_iterator<T>& operator+=(unsigned int);    // Just loop ++
+        tree_iterator<T>& operator-=(unsigned int);    // Just loop --
+};
+
+// Return value
+template<typename T>
+T& tree_iterator<T>::operator*() const {
+//    return _pos->value;
+    return this._path.top()->value;
+};
+
+// Return a reference to value
+template<typename T>
+T* tree_iterator<T>::operator->() const {  // It's an -> because we could use it to call a method
+//    return &_pos->value;
+    return &this._path.top()->value;
+};
+
+// ++ does a surprising amount of work
+template<typename T>
+tree_iterator<T>& tree_iterator<T>::operator++() {
+    //if(_pos) {
+    //    if(_pos->right) {
+    //        _pos = _pos->right;
+    //        for(; _pos->left; _pos = _pos->left);
+    //    }
+    //    else {
+    //        // Go up:
+    //        //   Options:
+    //        //     - Parent pointer
+    //        //     - Iterate from the top every time we call ++
+    //        //     - stack - have a stack of parents in the iterator
+    //        if 
+    //    }
+    //}
+    if(~this._path.empty()) {
+        if(this._path->right()) {
+            this._path.push(this._path.top()->right);  // Go to the right - if I'm at the rightmost part of the tree then I've visited every value
+            while(this._path.top()->left) {
+                this._path.push(this._path.top()->left); // Keep iterating to the left, we want to be as far to the left as we can
+            }
+        }
+        else {
+            node<T>* child = this._path.top();
+            this._path.pop();                                                 // Go up
+            while(!_path.empty() && this._path.top()->right == child) {       // If I came from the right, don't go straight back down to the right
+                child = this._path.top();
+                this._path.pop();
+            }
+        }
+    }
 };
 
 template<typename T>
@@ -25,6 +112,11 @@ class tree {
         typedef T&          reference;
         typedef size_t      size_type;
         typedef ptrdiff_t   different_type;
+        typedef tree_iterator<T> iterator;
+        typedef tree_iterator<const T> const_iterator;
+        typedef std::bidirectional_iterator_tag iterator_category;
+        typedef std::reverse_iterator<iterator> reverse_iterator;
+        typedef std::reverse_iterator<const iterator> const_reverse_iterator;
 
         tree()         : _root(nullptr) {}         // Default constructor
         tree(T c)      : _root(nullptr) {_root = new node<T>(c);} // Construct with a value
@@ -74,51 +166,5 @@ void tree<T>::inorder(node<T>* n) {
         inorder(n->right);
     }
 };
-
-
-// Our tree iterator class
-template<typename T>
-class tree_iterator {
-    private:
-        node<T>* _pos;  // Position - where it is in the tree
-    public:
-        tree_iterator<T>(node<T>* root)
-        {
-            _pos = root;
-            if(_pos) {
-                for(; _pos->left; _pos = _pos->left);
-            }
-        }
-
-        T& operator*()  const;                      // Dereference
-        T* operator->() const;                      // Call a method on
-        tree_iterator& operator++();                // Preincrement ++ - move the iterator forwards
-        tree_iterator& operator--();                // Preincrement --
-        tree_iterator  operator++(int);             // Postincrement ++
-        tree_iterator  operator--(int);             // Postincrement --
-        tree_iterator& operator+=(unsigned int);    // Just loop ++
-        tree_iterator& operator-=(unsigned int);    // Just loop --
-};
-
-// Return value
-template<typename T>
-T& tree_iterator<T>::operator*() const {
-    return _pos->value;
-}
-
-// Return a reference to value
-template<typename T>
-T* tree_iterator<T>::operator->() const {  // It's an -> because we could use it to call a method
-    return &_pos->value;
-}
-
-//template<typename T>
-//tree_iterator<T>::operator++() {
-//    if(_pos) {
-//        inorder(_pos->left);
-//        return *this;
-//        inorder(_pos->right);
-//    }
-//}
 
 #endif // TREE_HPP
