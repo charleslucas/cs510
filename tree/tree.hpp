@@ -49,6 +49,15 @@ class tree_iterator {
         tree_iterator<T>  operator--(int);             // Postincrement --
         tree_iterator<T>& operator+=(unsigned int);    // Just loop ++
         tree_iterator<T>& operator-=(unsigned int);    // Just loop --
+        bool operator==(const tree_iterator<T>& rhs) const
+        {
+            return this._path == rhs._path;
+        }
+        bool operator!=(const tree_iterator<T>& rhs) const
+        {
+            return this._path != rhs._path;
+        }
+
 };
 
 // Return value
@@ -118,7 +127,7 @@ class tree {
         typedef std::reverse_iterator<iterator> reverse_iterator;
         typedef std::reverse_iterator<const iterator> const_reverse_iterator;
 
-        tree()         : _root(nullptr) {}         // Default constructor
+        tree() { _root = nullptr;}         // Default constructor
         tree(T c)      : _root(nullptr) {_root = new node<T>(c);} // Construct with a value
         tree(const tree& t);                       // Copy constructor - bigger, so don't inline
         tree(tree&& t) : _root(nullptr) {          // Move constructor - take everything out and make it your own, but set the source's data to null/default
@@ -130,6 +139,8 @@ class tree {
                                                    //                                      is usually more efficient)
                                                    // Also, may want to swap your internals with the thing you're moving from
                                                    //   to avoid memory leaks.
+        iterator begin() {return tree_iterator<T>(_root, true);}
+        iterator end()   {return tree_iterator<T>(_root, false);}
 
         // Data methods
         void insert(T c);
@@ -148,10 +159,10 @@ void tree<T>::insert(T c) {
 };
 template<typename T>
 node<T>* tree<T>::insert(T c, node<T>* at) {
-    if(!at) return node<T>(c);                                   // If at is null, return new node
+    if(!at) return new node<T>(c);                            // If at is null, return new node (Note: we are intentionally not cleaning up memory for now)
     if(c <= at->value) at->left  = insert(c, at->left);      // Insert left if <= current node value
     if(c  > at->value) at->right = insert(c, at->right);     // Insert right if > current node value
-    return at;                                                // return the tree we inserted into
+    return at;                                               // return the tree we inserted into
 };
 template<typename T>
 void tree<T>::remove() {
