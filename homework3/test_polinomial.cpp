@@ -7,7 +7,7 @@ using namespace std;
 
 //////////////////////////////////////////////////////////////////
 //
-// This is mostly to show off what a term rewritting system can do
+// This is mostly to show off what a term rewriting system can do
 // I've made a bunch of common rules for boolean algebra,
 // and we are going to take a moderately large expression, and reduce it.
 //
@@ -115,5 +115,6 @@ int main()
         cout << "=> " << *example << endl;
         example = reduce(example, rules);
     }
+    
     return 0;
 }

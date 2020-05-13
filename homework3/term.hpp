@@ -80,8 +80,8 @@ class term {
                                                    //                                      is usually more efficient)
                                                    // Also, may want to swap your internals with the thing you're moving from
                                                    //   to avoid memory leaks.
-        //iterator begin() {return term_iterator<T>(_root, true);}
-        //iterator end()   {return term_iterator<T>(_root, false);}
+        iterator begin() {return term_iterator<T>(nullptr, true);}
+        iterator end()   {return term_iterator<T>(nullptr, false);}
 
 };
 
@@ -90,84 +90,94 @@ template<typename T>
 class variable : public term<T> {
     std::string name;     // The name of our variable
 
-    // Given a variable name
-    variable(std::string n) {name = n;} 
+    public:
+        // Default Constructor
+        variable(std::string n) {name = n;} 
 
-    // Copy constructor
-    variable(const variable& t) {
-       t.name   = name;
-    };
+        // Copy constructor
+        variable(const variable& t) {
+           t.name   = name;
+        };
 
-    // Move constructor - take everything out and make it your own, but set the source's data to null/default
-    variable(variable&& t) {
-        name     = t.name;
-        t.name   = "";
-   };
-    
-    // Deconstructor
-    ~variable() {
-    };
+        // Move constructor - take everything out and make it your own, but set the source's data to null/default
+        variable(variable&& t) {
+            name     = t.name;
+            t.name   = "";
+        };
+
+        // Deconstructor
+        ~variable() {
+        };
 };
 
 template<typename T>
 class literal : public term<T> {
     T value;         // Literal value
 
-    // Constructor
-    literal(T v) {value = v;}
+    public:
 
-    // Copy constructor
-    literal(literal& t) {
-       t.value  = value;
-    };
+        // Constructor
+        literal(T v) {value = v;}
 
-    // Move constructor - take everything out and make it your own, but set the source's data to null/default
-    literal(literal&& t) {
-        value  = t.value;
-        t.value  = false;
-   };
-    
-    // Deconstructor
-    ~literal() {
-    };
+        // Copy constructor
+        literal(literal& t) {
+           t.value  = value;
+        };
+
+        // Move constructor - take everything out and make it your own, but set the source's data to null/default
+        literal(literal&& t) {
+            value  = t.value;
+            t.value  = false;
+        };
+
+        // Deconstructor
+        ~literal() {
+        };
 
 };
 
 template<typename T>
 class function : public term<T> {
     std::string symbol;
-    std::vector<term_ptr<T>>  children;
+    std::vector<term_ptr<T>> children;
 
-    // Constructor
-    function(std::string s, std::vector<term_ptr<T>> k) {symbol = s; children = k;} 
+    public:
 
-    // Copy constructor
-    function(const function& t) {
-       t.symbol   = symbol;
-       t.children = children;
-    };
+        // Constructor
+        function(std::string s, int size, std::vector<term_ptr<T>> k) {
+            symbol = s;
+            for (int i; i < size; i++) {
+                children[i] = k[i];
+            }
+        } 
 
-    // Move constructor - take everything out and make it your own, but set the source's data to null/default
-    function(function&& t) {
-        symbol    = t.symbol;
-        children  = t.children;
-        t.symbol  = "";
-        t.children.clear();
-    };
+        // Copy constructor
+        function(const function& t) {
+           t.symbol   = symbol;
+           t.children = children;
+        };
 
-    // Deconstructor
-    ~function() {
-    };
+        // Move constructor - take everything out and make it your own, but set the source's data to null/default
+        function(function&& t) {
+            symbol    = t.symbol;
+            children  = t.children;
+            t.symbol  = "";
+            t.children.clear();
+        };
 
-    // Inorder traversal - print out everything on the left, then my value, then everything on the right.
-    //void inorder(term<T>* n) {
-    //    if (n) {
-    //        inorder(n->_left);                       // Recursively crawl all the way to the left
-    //        std::cout << n->value << std::endl;      // Print each value
-    //        inorder(n->_right);                      // As we work back to the right
-    //    }
-    //};
-};
+        // Deconstructor
+        ~function() {
+        };
+
+        // Inorder traversal - print out everything on the left, then my value, then everything on the right.
+        //void inorder(term<T>* n) {
+        //    if (n) {
+        //        inorder(n->_left);                       // Recursively crawl all the way to the left
+        //        std::cout << n->value << std::endl;      // Print each value
+        //        inorder(n->_right);                      // As we work back to the right
+        //    }
+        //};
+};  
 
 
 /////////////////////////////////////////////////////////////////
@@ -213,7 +223,7 @@ term_ptr<T> rewrite(term_ptr<T> t, term<T>& rhs, std::vector<int> path, const Su
 template<typename T>
 std::ostream& operator<<(std::ostream& out, const term<T>& t)
 {
-    inorder(t);
+//    inorder(t);
 
     return out;
 }

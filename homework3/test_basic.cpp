@@ -7,7 +7,7 @@ using namespace std;
 
 //////////////////////////////////////////////////////////////////
 //
-// This is mostly to show off what a term rewriting system can do
+// This is mostly to show off what a term rewritting system can do
 // I've made a bunch of common rules for boolean algebra,
 // and we are going to take a moderately large expression, and reduce it.
 //
@@ -37,7 +37,7 @@ using rule = pair<term_ptr<T>, term_ptr<T>>;
 
 variable_ptr<bool> var(string n)
 {
-    return make_shared<variable<bool>>(/*calling the constructor*/variable<bool>(n));
+    return make_shared<variable<bool>>(variable<bool>(n));
 }
 literal_ptr<bool> lit(bool b)
 {
@@ -98,10 +98,10 @@ int main()
     // output: not(true)
     // output: true
     // output: false
-    for(term<bool>& t : *example)
-    {
-        cout << t << endl;
-    }
+    //for(term<bool>& t : *example)
+    //{
+    //    cout << t << endl;
+    //}
 
     // test doing a simple rewrite
     // this should give
@@ -110,4 +110,6 @@ int main()
     match.extend("a", tand(tnot(tor(var("x"), var("x"))), tnot(lit(true))));
     example = rewrite(example, *contra.second, vector<int>(), match);
     cout << *example << endl;
+
+    return 0;
 }
