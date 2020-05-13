@@ -80,8 +80,8 @@ class term {
                                                    //                                      is usually more efficient)
                                                    // Also, may want to swap your internals with the thing you're moving from
                                                    //   to avoid memory leaks.
-        iterator begin() {return term_iterator<T>(nullptr, true);}
-        iterator end()   {return term_iterator<T>(nullptr, false);}
+        iterator begin() {return term_iterator<T>();} //this, true);}
+        iterator end()   {return term_iterator<T>();} //this, false);}
 
 };
 

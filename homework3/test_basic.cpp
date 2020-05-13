@@ -98,10 +98,10 @@ int main()
     // output: not(true)
     // output: true
     // output: false
-    //for(term<bool>& t : *example)
-    //{
-    //    cout << t << endl;
-    //}
+    for(term<bool>& t : *example)
+    {
+        cout << t << endl;
+    }
 
     // test doing a simple rewrite
     // this should give
