@@ -47,7 +47,8 @@
         "iomanip": "cpp",
         "iosfwd": "cpp",
         "limits": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "cstring": "cpp"
     },
     "python.pythonPath": "/bin/python3"
 }

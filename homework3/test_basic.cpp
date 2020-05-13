@@ -7,7 +7,7 @@ using namespace std;
 
 //////////////////////////////////////////////////////////////////
 //
-// This is mostly to show off what a term rewritting system can do
+// This is mostly to show off what a term rewriting system can do
 // I've made a bunch of common rules for boolean algebra,
 // and we are going to take a moderately large expression, and reduce it.
 //
@@ -105,7 +105,7 @@ int main()
 
     // test doing a simple rewrite
     // this should give
-    // output: not(and(not(or(a,a)), not(true)))
+    // output: not(and(not(or(x,x)), not(true)))
     Sub<bool> match;
     match.extend("a", tand(tnot(tor(var("x"), var("x"))), tnot(lit(true))));
     example = rewrite(example, *contra.second, vector<int>(), match);

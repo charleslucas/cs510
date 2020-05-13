@@ -51,6 +51,8 @@ class term {
 
     // Make it STL-complaint:
     public:
+        std::vector<term_ptr<T>> children;
+
         typedef T           value_type;
         typedef T*          pointer;
         typedef T&          reference;
@@ -80,8 +82,23 @@ class term {
                                                    //                                      is usually more efficient)
                                                    // Also, may want to swap your internals with the thing you're moving from
                                                    //   to avoid memory leaks.
-        iterator begin() {return term_iterator<T>();} //this, true);}
-        iterator end()   {return term_iterator<T>();} //this, false);}
+        iterator begin() {return term_iterator<T>(this, true);}
+        iterator end()   {return term_iterator<T>(this, false);}
+
+        virtual int num_children() {
+            return 0;
+        }
+
+        virtual std::string get_string() const {
+        }
+
+        virtual void print() {
+            std::cout << "term" << std::endl;
+        }
+
+        // Preorder traversal - start at the root, print out everything on the left, then everything on the right.
+        virtual void preorder(const term<T>& t) {
+        };
 
 };
 
@@ -108,6 +125,14 @@ class variable : public term<T> {
         // Deconstructor
         ~variable() {
         };
+
+        std::string get_string() const {
+            return name;
+        }
+
+        void print() {
+            std::cout << "variable:  " << name << std::endl;
+        }
 };
 
 template<typename T>
@@ -134,12 +159,18 @@ class literal : public term<T> {
         ~literal() {
         };
 
+        std::string get_string() const {
+            return std::to_string(value);
+        }
+
+        void print() {
+            std::cout << "literal:  " << value << std::endl;
+        }
 };
 
 template<typename T>
 class function : public term<T> {
     std::string symbol;
-    std::vector<term_ptr<T>> children;
 
     public:
 
@@ -147,20 +178,20 @@ class function : public term<T> {
         function(std::string s, int size, std::vector<term_ptr<T>> k) {
             symbol = s;
             for (int i; i < size; i++) {
-                children[i] = k[i];
+                this->children[i] = k[i];
             }
         } 
 
         // Copy constructor
         function(const function& t) {
            t.symbol   = symbol;
-           t.children = children;
+           t.children = this->children;
         };
 
         // Move constructor - take everything out and make it your own, but set the source's data to null/default
         function(function&& t) {
             symbol    = t.symbol;
-            children  = t.children;
+            this->children  = t.children;
             t.symbol  = "";
             t.children.clear();
         };
@@ -169,13 +200,22 @@ class function : public term<T> {
         ~function() {
         };
 
-        // Inorder traversal - print out everything on the left, then my value, then everything on the right.
-        //void inorder(term<T>* n) {
-        //    if (n) {
-        //        inorder(n->_left);                       // Recursively crawl all the way to the left
-        //        std::cout << n->value << std::endl;      // Print each value
-        //        inorder(n->_right);                      // As we work back to the right
-        //    }
+        int num_children() {
+            return this->children.size();
+        }
+
+        std::string get_string() const {
+            return symbol;
+        }
+
+        void print() {
+            std::cout << "function:  " << symbol << std::endl;
+        }
+
+        //// Preorder traversal - start at the root, print out everything on the left, then everything on the right.
+        //void preorder() {
+        //    std::cout << symbol << "(" << std::endl;      // Print this function symbol
+        //    //std::cout << t->value << std::endl;              // Print each value
         //};
 };  
 
@@ -221,9 +261,18 @@ term_ptr<T> rewrite(term_ptr<T> t, term<T>& rhs, std::vector<int> path, const Su
 /////////////////////////////////////////////////////////////////
 
 template<typename T>
-std::ostream& operator<<(std::ostream& out, const term<T>& t)
+std::ostream& operator<<(std::ostream& out, term<T>& t)
 {
-//    inorder(t);
+    term_iterator<T> ptr;
+
+    for (ptr = t.begin(); ptr != t.end(); ++ptr) {
+
+    }
+
+    //ptr = t.begin();
+    //out <<  ptr.get_string();
+    //ptr = t.end();
+    //out <<  ptr.get_string();
 
     return out;
 }
