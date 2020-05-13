@@ -127,8 +127,9 @@ class tree {
         typedef std::reverse_iterator<iterator> reverse_iterator;
         typedef std::reverse_iterator<const iterator> const_reverse_iterator;
 
-        tree() { _root = nullptr;}         // Default constructor
+        tree() { _root = nullptr;}                 // Default constructor
         tree(T c)      : _root(nullptr) {_root = new node<T>(c);} // Construct with a value
+
         tree(const tree& t);                       // Copy constructor - bigger, so don't inline
         tree(tree&& t) : _root(nullptr) {          // Move constructor - take everything out and make it your own, but set the source's data to null/default
             _root = t._root;
@@ -146,28 +147,32 @@ class tree {
         void insert(T c);
         node<T>* insert(T c, node<T>* at);
         void remove();
-        void inorder(node<T>* n);
+        //void inorder(node<T>* n);
 };
 
 template<typename T>
 tree<T>::tree(const tree& t) {
     // Copy constructor
 };
+
 template<typename T>
 void tree<T>::insert(T c) {
     _root = insert(c, _root);
 };
+
 template<typename T>
 node<T>* tree<T>::insert(T c, node<T>* at) {
-    if(!at) return new node<T>(c);                            // If at is null, return new node (Note: we are intentionally not cleaning up memory for now)
+    if(!at) return new node<T>(c);                           // If at is null, return new node (Note: we are intentionally not cleaning up memory for now)
     if(c <= at->value) at->left  = insert(c, at->left);      // Insert left if <= current node value
     if(c  > at->value) at->right = insert(c, at->right);     // Insert right if > current node value
     return at;                                               // return the tree we inserted into
 };
+
 template<typename T>
 void tree<T>::remove() {
   // Move the branch up if you delete it
 };
+
 // Inorder traversal - print out everything on the left, then my value, then everything on the right.
 template<typename T>
 void tree<T>::inorder(node<T>* n) {

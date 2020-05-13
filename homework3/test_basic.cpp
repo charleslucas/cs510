@@ -7,7 +7,7 @@ using namespace std;
 
 //////////////////////////////////////////////////////////////////
 //
-// This is mostly to show off what a term rewritting system can do
+// This is mostly to show off what a term rewriting system can do
 // I've made a bunch of common rules for boolean algebra,
 // and we are going to take a moderately large expression, and reduce it.
 //
@@ -33,11 +33,11 @@ using rule = pair<term_ptr<T>, term_ptr<T>>;
 // Boolean algebra
 /////////////////////////////////
 
-// helper functions for making variables, literals and funcitons
+// helper functions for making variables, literals and functions
 
 variable_ptr<bool> var(string n)
 {
-    return make_shared<variable<bool>>(variable<bool>(n));
+    return make_shared<variable<bool>>(/*calling the constructor*/variable<bool>(n));
 }
 literal_ptr<bool> lit(bool b)
 {
