@@ -123,6 +123,5 @@ int main()
         cout << "=> " << *example << endl;
         example = reduce(example, rules);
     }
-    
     return 0;
 }
